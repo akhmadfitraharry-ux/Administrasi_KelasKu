@@ -1,5 +1,5 @@
 // Cloudflare Pages Function: POST /api/tugas
-// Satu pintu untuk delapan tugas AI: rapor | perangkat | soal | lkpd | karakter | kalender | tindaklanjut | surat  (body: { task, ... })
+// Satu pintu untuk sembilan tugas AI: rapor | perangkat | soal | lkpd | karakter | kalender | tindaklanjut | surat | impor  (body: { task, ... })
 const MODEL = '@cf/meta/llama-3.1-8b-instruct';
 const CORS = {
   'access-control-allow-origin': '*',
@@ -167,6 +167,40 @@ ${draf}
 
 Keluarkan JSON: {"isi":"isi surat yang sudah dirapikan"}.
 Aturan: pertahankan SEMUA fakta (tanggal, waktu, tempat, angka, nama mata pelajaran) dan token {nama} apa adanya; jangan menambah fakta baru; mulai dengan "Dengan hormat,"; 2 sampai 4 paragraf; jangan menulis salam pembuka alamat, tanda tangan, atau nama pengirim; tanpa markdown.`,
+    };
+  },
+  // ---- impor data dari foto / PDF / Word / teks bebas ----
+  impor(b) {
+    const teks = clean(b.teks, 7000);
+    if (teks.trim().length < 3) throw new Error('Teks kosong');
+    const schema = {
+      siswa: '{"rows":[{"nama":"","nis":"","jk":"L atau P","ortu":"","hp":""}]}',
+      mapel: '{"rows":[{"nama":"","kelas":"angka 1-6","jp":0}]}',
+      jadwal: '{"rows":[{"hari":"Senin..Sabtu","mulai":"HH:MM","selesai":"HH:MM","mapel":""}]}',
+      nilai: '{"rows":[{"nama":"nama siswa","mapel":"","nilai":0,"jenis":"Harian/Tugas/Proyek/UTS/UAS atau kosong","tp":"","tanggal":"YYYY-MM-DD atau kosong"}]}',
+      absensi: '{"rows":[{"nama":"nama siswa","tanggal":"YYYY-MM-DD","status":"H/S/I/A"}]}',
+      asesmen: '{"rows":[{"judul":"","mapel":"","jenis":"Diagnostik/Formatif/Sumatif atau kosong","tanggal":"YYYY-MM-DD atau kosong","teknik":""}]}',
+    };
+    const tipe = clean(b.tipe, 12);
+    if (!schema[tipe]) throw new Error('Jenis data tidak dikenal');
+    const mp = (Array.isArray(b.mapel) ? b.mapel : []).slice(0, 30).map((x) => clean(x, 60)).join(', ');
+    const extra = {
+      siswa: 'Satu baris per siswa; "jk" hanya L atau P; kosongkan yang tidak ada.',
+      mapel: 'Satu baris per mata pelajaran.',
+      jadwal: 'Jika jadwal berbentuk tabel hari x jam, uraikan menjadi satu baris per pelajaran. Jam dengan format 24 jam HH:MM. Abaikan istirahat/upacara.',
+      nilai: 'Satu baris per siswa per mata pelajaran; nilai angka 0 sampai 100; salin nama persis seperti tertulis.' + (mp ? ' Mata pelajaran yang sudah ada: ' + mp + '.' : ''),
+      absensi: 'Satu baris per siswa per tanggal yang ada isinya; status hanya H, S, I, atau A. Jika hanya nomor hari tersedia, pakai bulan ' + clean(b.bulan, 7) + '.',
+      asesmen: 'Satu baris per asesmen.',
+    }[tipe];
+    return {
+      max: 3800,
+      user: `Ekstrak data ${tipe} dari teks hasil pembacaan berkas guru berikut.
+"""
+${teks}
+"""
+
+Keluarkan JSON dengan bentuk: ${schema[tipe]}
+Aturan: ${extra} Salin apa adanya; JANGAN mengarang data yang tidak ada di teks; abaikan judul, nomor urut, dan baris jumlah/rata-rata; tanggal dalam format YYYY-MM-DD.`,
     };
   },
 };
