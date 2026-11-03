@@ -545,7 +545,10 @@ function soalPage(v){
    <label>Ambil dari RPP (opsional)</label><select id="srpp"><option value="">— tanpa RPP —</option>${db.rpp.map(r=>`<option value="${r.id}" ${r.id===d.rppId?'selected':''}>${esc(r.topik)} — ${esc(r.mapel)}</option>`).join('')}</select>
    <div class="g2"><div><label>Mata Pelajaran</label><input data-sf="mapel" value="${esc(d.mapel)}"></div><div><label>Kelas</label><select data-sf="kelas">${KELAS.map(k=>`<option ${k==d.kelas?'selected':''}>${k}</option>`).join('')}</select></div></div>
    <label>Topik</label><input data-sf="topik" value="${esc(d.topik)}"><label>Tujuan Pembelajaran</label><textarea data-sf="tp" style="min-height:70px">${esc(d.tp)}</textarea>
-   <label>Teks sumber materi (opsional; soal akan bersumber dari sini)</label><textarea data-sf="sumber_teks" placeholder="Tempel materi dari buku atau ambil otomatis dari RPP">${esc(d.sumber_teks)}</textarea>
+   <label>Foto / berkas materi (opsional; AI membaca lalu soal dibuat dari materi itu)</label>
+   <div class="row"><button type="button" class="btn s a" data-act="soalCam">📷 Foto Halaman Buku</button><button type="button" class="btn s g" data-act="soalUp">📎 Unggah Foto/PDF/Word</button></div>
+   <div id="sslist">${soalSrcHtml()}</div><input type="file" id="scam" accept="image/*" capture="environment" hidden><input type="file" id="sup" accept="image/*,.pdf,.docx,.txt,.md" multiple hidden>
+   <label>Teks sumber materi (hasil bacaan foto muncul di sini; boleh disunting atau ditempel manual)</label><textarea data-sf="sumber_teks" placeholder="Tempel materi dari buku atau ambil otomatis dari RPP">${esc(d.sumber_teks)}</textarea>
    <div class="g2"><div><label>Pilihan ganda</label><input type="number" min="0" max="20" data-sf="pg" value="${esc(d.pg)}"></div><div><label>Isian singkat</label><input type="number" min="0" max="10" data-sf="isian" value="${esc(d.isian)}"></div><div><label>Uraian</label><input type="number" min="0" max="5" data-sf="uraian" value="${esc(d.uraian)}"></div><div><label>Tingkat kesulitan</label><select data-sf="level">${lv.map(x=>`<option ${x===d.level?'selected':''}>${x}</option>`).join('')}</select></div></div>
    <div class="row" style="margin-top:14px"><button class="btn a" data-act="soalAI">✨ Buat Soal</button><button class="btn" data-act="lkpdAI">✨ Buat LKPD</button></div></div>
   <div class="card"><h3>2 · Hasil (bisa disunting)</h3>
@@ -1521,6 +1524,25 @@ view.addEventListener('keydown',e=>{const t=e.target;if(e.key==='Enter'&&t.datas
 ['impor','nilaicepat','kartu','tahun'].forEach(k=>PAGES[k]=defs[k]);
 {const tmp={...PAGES};Object.keys(PAGES).forEach(k=>delete PAGES[k]);['dashboard','guru','impor','siswa','mapel','kalender','rpp','perangkat','soal','asesmen','jadwal','absensi','absrekap','nilai','nilaicepat','leger','tl','karakter','rapor','kartu','jurnal','surat','rekap','excel','wali','tahun','setting'].forEach(k=>{if(tmp[k])PAGES[k]=tmp[k]})}
 
+
+
+/* ---------- foto / berkas materi untuk pembuat soal ---------- */
+let soalSrcList=[];
+const soalSrcHtml=()=>soalSrcList.map(x=>`<div class="mut" style="font-size:13px;margin-top:4px">${esc(x.name)} — ${esc(x.st)}</div>`).join('');
+async function soalSrc(files){
+  if(!soalEdit||!files.length)return;
+  soalSrcList=[];
+  for(const f of files){
+    const it={name:f.name||'foto kamera',st:'⏳ Membaca…'};soalSrcList.push(it);soalPage(view);
+    try{const t=(await readSource(f)).trim();
+      if(t){soalEdit.sumber_teks=((soalEdit.sumber_teks?soalEdit.sumber_teks+'\n\n':'')+`[Sumber: ${it.name}]\n`+t).slice(0,20000);it.st=`✅ Terbaca (${t.length} huruf)`}
+      else it.st='⚠ Tidak ada teks terbaca — coba foto lebih jelas dan terang'}
+    catch(e){it.st='⚠ '+String(e.message||e).slice(0,100)}
+    soalPage(view)}
+  toast('Materi dibaca — periksa teksnya, lalu tekan Buat Soal')
+}
+Object.assign(ACT,{soalCam:()=>$('#scam').click(),soalUp:()=>$('#sup').click()});
+view.addEventListener('change',e=>{const t=e.target;if(t.id==='scam'||t.id==='sup'){const fs=[...t.files];t.value='';soalSrc(fs)}});
 
 /* ===== navigasi ===== */
 const nav=$('#drawer');
