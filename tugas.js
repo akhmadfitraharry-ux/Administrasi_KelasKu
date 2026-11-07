@@ -1,6 +1,34 @@
 // Cloudflare Pages Function: POST /api/tugas
 // Satu pintu untuk sembilan tugas AI: rapor | perangkat | soal | lkpd | karakter | kalender | tindaklanjut | surat | impor  (body: { task, ... })
-const MODEL = '@cf/meta/llama-3.1-8b-instruct';
+// Model teks Workers AI. Model lama (llama-3.1-8b) sudah dihentikan Cloudflare; dicoba berurutan sampai ada yang menjawab.
+const MODELS = ['@cf/google/gemma-4-26b-a4b-it', '@cf/zai-org/glm-4.7-flash', '@cf/moonshotai/kimi-k2.6'];
+const pickText = (out) => {
+  let t = '';
+  if (typeof out === 'string') t = out;
+  else if (out && typeof out.response === 'string') t = out.response;
+  else if (out && out.choices && out.choices[0]) {
+    const c = out.choices[0].message ? out.choices[0].message.content : out.choices[0].text;
+    t = Array.isArray(c) ? c.map((x) => (x && x.text) || '').join('') : String(c || '');
+  }
+  return t.replace(/<think>[\s\S]*?<\/think>/g, '').trim();
+};
+async function askAI(env, messages, max, temperature) {
+  let last = new Error('AI tidak menjawab');
+  for (const model of MODELS) {
+    for (const extra of [{ chat_template_kwargs: { enable_thinking: false } }, {}]) {
+      try {
+        const out = await env.AI.run(model, { messages, max_completion_tokens: max * 2, temperature, ...extra });
+        const t = pickText(out);
+        if (t.includes('{')) return t;
+        last = new Error('Respons AI kosong');
+        break;
+      } catch (e) {
+        last = e;
+      }
+    }
+  }
+  throw last;
+}
 const CORS = {
   'access-control-allow-origin': '*',
   'access-control-allow-methods': 'POST, OPTIONS',
@@ -407,15 +435,8 @@ export async function onRequestPost({ request, env }) {
     const t = tasks[b.task];
     if (!t) return json({ ok: false, error: 'Tugas tidak dikenal' }, 400);
     const { user, max } = t(b);
-    const out = await env.AI.run(MODEL, {
-      messages: [
-        { role: 'system', content: SYS },
-        { role: 'user', content: user },
-      ],
-      max_tokens: max,
-      temperature: 0.4,
-    });
-    const data = parseJson(typeof out === 'string' ? out : out.response || '');
+    const text = await askAI(env, [{ role: 'system', content: SYS }, { role: 'user', content: user }], max, 0.4);
+    const data = parseJson(text);
     return json({ ok: true, data });
   } catch (e) {
     return json({ ok: false, error: String(e && e.message ? e.message : e) }, 500);
