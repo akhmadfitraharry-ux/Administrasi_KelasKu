@@ -203,6 +203,191 @@ Keluarkan JSON dengan bentuk: ${schema[tipe]}
 Aturan: ${extra} Salin apa adanya; JANGAN mengarang data yang tidak ada di teks; abaikan judul, nomor urut, dan baris jumlah/rata-rata; tanggal dalam format YYYY-MM-DD.`,
     };
   },
+  // ---- asisten tanya jawab data kelas ----
+  tanya(b) {
+    const q = clean(b.pertanyaan, 500);
+    if (q.trim().length < 3) throw new Error('Pertanyaan kosong');
+    const hist = (Array.isArray(b.riwayat) ? b.riwayat : []).slice(-6).map((m) => `${m && m.r === 'u' ? 'Guru' : 'Asisten'}: ${clean(m && m.t, 300)}`).join('\n');
+    return {
+      max: 900,
+      user: `Kamu asisten administrasi guru kelas SD. Berikut rekap data kelas guru:
+"""
+${clean(b.konteks, 7000)}
+"""
+${hist ? `Percakapan sebelumnya:\n${hist}\n` : ''}Pertanyaan guru: ${q}
+
+Keluarkan JSON: {"jawaban":"jawaban singkat dan jelas"}.
+Aturan: jawab HANYA dari data di atas; jika informasinya tidak ada di data, katakan datanya belum tersedia; jangan mengarang nama atau angka; sebut nama dan angka persis seperti di data; bahasa Indonesia santun; teks biasa tanpa markdown (boleh daftar bernomor); beri saran tindak lanjut singkat hanya jika diminta atau jelas membantu.`,
+    };
+  },
+
+  // ---- catatan cepat: pisahkan pengamatan per siswa ----
+  catatan(b) {
+    const teks = clean(b.teks, 5000);
+    if (teks.trim().length < 6) throw new Error('Catatan kosong');
+    const names = (Array.isArray(b.siswa) ? b.siswa : []).slice(0, 60).map((x) => clean(x, 60)).join('; ');
+    return {
+      max: 1800,
+      user: `Pisahkan catatan pengamatan guru berikut menjadi catatan perkembangan karakter per peserta didik kelas ${clean(b.kelas, 3) || '-'} SD.
+Daftar siswa kelas (gunakan nama PERSIS dari daftar ini): ${names || '-'}
+Catatan guru:
+"""
+${teks}
+"""
+
+Keluarkan JSON: {"catatan":[{"nama":"nama persis dari daftar","teks":"1 sampai 2 kalimat objektif dan membangun, diawali 'Ananda <nama panggilan>'","dpl":[nomor dimensi]}]}.
+Dimensi: 1 Keimanan dan ketakwaan, 2 Kewargaan, 3 Penalaran Kritis, 4 Kreativitas, 5 Kolaborasi, 6 Kemandirian, 7 Kesehatan, 8 Komunikasi.
+Aturan: hanya siswa yang disebut di catatan dan ada di daftar; gabungkan pengamatan siswa yang sama; jangan mengarang kejadian; "dpl" berisi 1 sampai 2 nomor yang paling sesuai.`,
+    };
+  },
+
+  // ---- rubrik & instrumen asesmen ----
+  instrumen(b) {
+    const jenis = clean(b.jenis, 12);
+    const schema = {
+      rubrik: '{"judul":"","tujuan":"","kriteria":[{"kriteria":"","baru":"","berkembang":"","cakap":"","mahir":""}]}',
+      observasi: '{"judul":"","petunjuk":"","aspek":[{"aspek":"","indikator":""}]}',
+      angket: '{"judul":"","petunjuk":"","pernyataan":["pernyataan 1"]}',
+      checklist: '{"judul":"","tahap":[{"tahap":"","kegiatan":["kegiatan 1"]}]}',
+    }[jenis];
+    if (!schema) throw new Error('Jenis instrumen tidak dikenal');
+    const aturan = {
+      rubrik: '4 sampai 5 kriteria yang terukur; tiap level (Baru Memulai, Berkembang, Cakap, Mahir) berupa deskripsi perilaku nyata yang bisa diamati, bukan angka.',
+      observasi: '4 sampai 6 aspek yang bisa diamati selama kegiatan; indikator berupa perilaku konkret; petunjuk menyebut skala skor 1 sampai 4 (Baru Memulai, Berkembang, Cakap, Mahir).',
+      angket: '8 sampai 12 pernyataan sederhana dari sudut pandang anak ("Aku ..."), mengungkap pengetahuan awal, minat, dan gaya belajar terkait topik; petunjuk menjelaskan pilihan Sudah, Mulai, Belum.',
+      checklist: '4 sampai 5 tahap projek (mis. persiapan, pelaksanaan, penyajian, refleksi), tiap tahap 2 sampai 4 kegiatan konkret yang bisa dicentang.',
+    }[jenis];
+    return {
+      max: 2200,
+      user: `Buat instrumen asesmen (${jenis}) untuk:
+- Mata pelajaran: ${clean(b.mapel, 80) || '-'}, kelas ${clean(b.kelas, 3)} (Fase ${clean(b.fase, 2)})
+- Topik: ${clean(b.topik, 150) || '-'}
+- Tujuan pembelajaran: ${clean(b.tp, 600) || '(sesuaikan dengan topik)'}
+- Yang dinilai / catatan guru: ${clean(b.catatan, 200) || '-'}
+
+Keluarkan JSON: ${schema}.
+Aturan: ${aturan} Bahasa Indonesia sesuai usia SD, praktis tanpa proyektor, jangan menambah kunci lain.`,
+    };
+  },
+  // ---- saran tindak lanjut siswa perlu perhatian ----
+  dini(b) {
+    const al = (Array.isArray(b.alasan) ? b.alasan : []).slice(0, 8).map((x) => `- ${clean(x, 120)}`).join('\n');
+    const nl = (Array.isArray(b.nilai) ? b.nilai : []).slice(0, 12).map((x) => `${clean(x && x.mapel, 40)} ${Number(x && x.rata) || 0}`).join('; ');
+    if (!al) throw new Error('Data kosong');
+    return {
+      max: 900,
+      user: `Guru kelas ${clean(b.kelas, 3) || '-'} SD membutuhkan saran tindak lanjut untuk peserta didik ${clean(b.nama, 60)} (${b.jk === 'P' ? 'perempuan' : 'laki-laki'}).
+Hal yang tercatat:
+${al}
+Nilai rata-rata: ${nl || '-'}
+
+Keluarkan JSON: {"saran":["3 sampai 5 langkah konkret"]}.
+Aturan: langkah praktis, hangat, dan bisa dilakukan guru kelas SD dalam 1-2 minggu; urutkan dari yang paling mendesak; jangan mendiagnosis kondisi medis atau psikologis; jangan menyalahkan anak atau orang tua; bila ada masalah kehadiran, sertakan komunikasi dengan orang tua; jangan mengarang fakta di luar data.`,
+    };
+  },
+
+  // ---- RPP diferensiasi ----
+  diferensiasi(b) {
+    const V = { pendampingan: 'peserta didik yang perlu pendampingan', pengayaan: 'peserta didik yang cepat paham (pengayaan)', visual: 'gaya belajar visual', auditori: 'gaya belajar auditori', kinestetik: 'gaya belajar kinestetik' };
+    const pilih = (Array.isArray(b.pilih) ? b.pilih : []).filter((k) => V[k]).slice(0, 5);
+    if (!pilih.length) throw new Error('Pilih minimal satu jenis');
+    return {
+      max: 2600,
+      user: `Susun diferensiasi pembelajaran untuk:
+- Mata pelajaran: ${clean(b.mapel, 80) || '-'}, kelas ${clean(b.kelas, 3)} (Fase ${clean(b.fase, 2)})
+- Topik: ${clean(b.topik, 150)}
+- Tujuan pembelajaran: ${clean(b.tp, 500) || '(sesuaikan dengan topik)'}
+- Alur RPP guru: awal: ${clean(b.awal, 400) || '-'} | inti: ${clean(b.inti, 900) || '-'}
+- Kondisi kelas: ${clean(b.catatan, 200) || '-'}
+
+Buat satu varian untuk setiap kelompok berikut (kode: arti): ${pilih.map((k) => `${k}: ${V[k]}`).join('; ')}.
+Keluarkan JSON: {"varian":[{"kode":"salah satu kode di atas","judul":"","profil":"1 kalimat ciri kelompok ini","kegiatan":["3 sampai 5 kegiatan konkret pada topik ini"],"asesmen":"cara menilai singkat"}]}.
+Aturan: tujuan pembelajaran tetap sama untuk semua kelompok, hanya cara/dukungan/tantangan yang berbeda; kegiatan praktis tanpa proyektor; bahasa Indonesia sesuai guru SD.`,
+    };
+  },
+
+  // ---- bahan ajar & ice breaker ----
+  bahan(b) {
+    const jenis = clean(b.jenis, 60);
+    if (!clean(b.topik, 150)) throw new Error('Topik wajib diisi');
+    const sumber = clean(b.sumber_teks, 4000);
+    return {
+      max: 1800,
+      user: `Buat "${jenis}" untuk:
+- Mata pelajaran: ${clean(b.mapel, 80) || '-'}, kelas ${clean(b.kelas, 3)} (Fase ${clean(b.fase, 2)})
+- Topik: ${clean(b.topik, 150)}
+- Permintaan khusus guru: ${clean(b.catatan, 200) || '-'}
+${sumber ? `- SUMBER MATERI (jadikan acuan, jangan menambah fakta di luar sumber):\n"""\n${sumber}\n"""` : ''}
+
+Keluarkan JSON: {"judul":"","isi":"isi lengkap sebagai teks biasa, gunakan \\n untuk baris baru"}.
+Aturan: bahasa ramah anak SD; ringkasan materi singkat (maksimal 10 kalimat pendek) dengan contoh dekat kehidupan anak; cerita 150-250 kata dengan pesan jelas; ice breaker/permainan sertakan alat (jika ada), langkah bernomor, dan durasi; pantun/lagu singkat mudah dihafal; tanpa markdown; jangan mengarang fakta ilmiah.`,
+    };
+  },
+
+  // ---- dokumen kinerja guru ----
+  kinerja(b) {
+    const f = b.fakta && typeof b.fakta === 'object' ? b.fakta : {};
+    const g = b.guru && typeof b.guru === 'object' ? b.guru : {};
+    return {
+      max: 2400,
+      user: `Susun "${clean(b.jenis, 80)}" untuk guru kelas SD.
+Guru: ${clean(g.nama, 60) || '-'}; sekolah ${clean(g.sekolah, 80) || '-'}; kelas ${clean(g.kelas, 3) || '-'}; TA ${clean(g.tahun, 12)} semester ${clean(g.semester, 8)}.
+FAKTA dari catatan guru (satu-satunya sumber angka):
+${clean(JSON.stringify(f), 3500)}
+
+Keluarkan JSON: {"judul":"","isi":"dokumen lengkap sebagai teks biasa dengan bagian A, B, C dst, gunakan \\n untuk baris baru"}.
+Aturan: gunakan HANYA fakta di atas; angka disalin persis; bila suatu data kosong/null tulis "belum tercatat"; JANGAN mengarang kegiatan, angka, atau prestasi; untuk bagian kendala dan tindak lanjut tulis usulan umum dan beri tanda "(usulan, mohon disesuaikan)"; bahasa Indonesia baku, formal, ringkas; tanpa markdown.`,
+    };
+  },
+
+  // ---- membaca lembar jawaban siswa ----
+  jawaban(b) {
+    const teks = clean(b.teks, 3000);
+    if (teks.trim().length < 3) throw new Error('Teks kosong');
+    const nPg = num(b.nPg, 0, 0, 60), nIs = num(b.nIsian, 0, 0, 30);
+    return {
+      max: 900,
+      user: `Berikut hasil pembacaan foto lembar jawaban seorang siswa SD:
+"""
+${teks}
+"""
+Jumlah pilihan ganda: ${nPg}; jumlah isian singkat: ${nIs}.
+
+Keluarkan JSON: {"nama":"nama siswa atau string kosong","pg":["tepat ${nPg} huruf A/B/C/D, string kosong bila kosong atau tidak terbaca"],"isian":["tepat ${nIs} jawaban, string kosong bila kosong"]}.
+Aturan: urutkan menurut nomor soal; JANGAN menebak jawaban yang tidak terbaca; salin jawaban isian apa adanya.`,
+    };
+  },
+  // ---- perangkat STEM: bagian 1 (rancangan) ----
+  stem(b) {
+    const topik = clean(b.topik, 160) || clean(b.tema, 120);
+    if (!topik) throw new Error('Topik kosong');
+    const n = num(b.pertemuan, 4, 1, 6);
+    const src = clean(b.sumber_teks, 3500);
+    return {
+      max: 2600,
+      user: `Susun rancangan pembelajaran terintegrasi STEM (Sains, Teknologi, Teknik/Rekayasa, Matematika) untuk SD, Kurikulum Merdeka.
+Jenis: ${clean(b.mode, 60)}; tema: ${clean(b.tema, 80) || '-'}; mapel: ${clean(b.mapel, 60) || '-'}; kelas ${clean(b.kelas, 3)} (Fase ${clean(b.fase, 2)}); topik/masalah: ${topik}; ${n} pertemuan x ${clean(b.jp, 3)} JP.
+Kondisi/bahan tersedia: ${clean(b.catatan, 200) || 'bahan sederhana'}.
+${src ? 'Materi acuan dari buku:\n"""\n' + src + '\n"""\n' : ''}Dimensi Profil Lulusan (nomor 1-8): ${Array.isArray(b.dplNama) ? b.dplNama.slice(0, 8).map((x, i) => (i + 1) + '=' + clean(x, 60)).join('; ') : ''}.
+
+Keluarkan JSON: {"judul":"","deskripsi":"2 kalimat","pertanyaan_pemandu":"Bagaimana kita dapat ...?","mapel_terkait":[""],"dpl":[3,4,5],"tujuan":["3 sampai 4 tujuan pembelajaran"],"integrasi":{"s":{"tp":"","kegiatan":""},"t":{"tp":"","kegiatan":""},"e":{"tp":"","kegiatan":""},"m":{"tp":"","kegiatan":""}},"alur":[{"pertemuan":"Pertemuan 1","tahap":"Tanya","kegiatan":"","fokus":"S, M"}],"alat_bahan":[""],"produk":"","keselamatan":[""]}.
+Aturan: alur tepat ${n} baris mengikuti proses desain rekayasa (Tanya, Imajinasi dan Rencana, Buat, Uji dan Perbaiki, Bagikan dan Refleksi); bahan murah dan mudah didapat; kegiatan sesuai usia dan aman; matematika harus berupa pengukuran/pengolahan data nyata; teknologi boleh sederhana (tanpa listrik bila perlu); jangan mengarang fakta ilmiah.`,
+    };
+  },
+
+  // ---- perangkat STEM: bagian 2 (LKPD, rubrik, asesmen) ----
+  stem2(b) {
+    const tujuan = Array.isArray(b.tujuan) ? b.tujuan.slice(0, 6).map((x) => clean(x, 200)).join('; ') : '';
+    return {
+      max: 2600,
+      user: `Untuk projek STEM SD berikut, buat LKPD, rubrik, asesmen, dan refleksi.
+Judul: ${clean(b.judul, 160)}; kelas ${clean(b.kelas, 3)} (Fase ${clean(b.fase, 2)}); topik: ${clean(b.topik, 160)}.
+Pertanyaan pemandu: ${clean(b.pertanyaan, 200)}. Tujuan: ${tujuan}. Produk: ${clean(b.produk, 200)}.
+
+Keluarkan JSON: {"lkpd":{"petunjuk":"","langkah":["5 sampai 6 langkah kerja"],"pertanyaan":["4 pertanyaan refleksi siswa"]},"rubrik":[{"kriteria":"","baru":"","berkembang":"","cakap":"","mahir":""}],"asesmen":{"formatif":"","sumatif":""},"refleksi":["3 pertanyaan refleksi guru"]}.
+Aturan: rubrik tepat 5 kriteria: Sains, Teknologi, Teknik, Matematika, Kolaborasi dan komunikasi; deskriptor singkat, dapat diamati, bahasa sederhana; langkah LKPD dapat dikerjakan siswa SD secara mandiri.`,
+    };
+  },
 };
 
 function parseJson(text) {

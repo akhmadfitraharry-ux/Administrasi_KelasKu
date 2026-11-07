@@ -125,7 +125,7 @@ const nm=(col,id,key='nama')=>(db[col].find(x=>x.id===id)||{})[key]||'-';
 
 /* ===== penyimpanan lokal (offline-first) ===== */
 const KEY='kelasku3d.v1';
-const DEF={guru:{nama:'',nip:'',sekolah:'',npsn:'',kelas:'',tahun:'2026/2027',semester:'Ganjil',kepsek:'',nipKepsek:''},siswa:[],mapel:[],rpp:[],asesmen:[],jadwal:[],absensi:{},nilai:[],jurnal:[],catatan:{},karakter:{},projek:[],kalender:[],tl:{},arsip:[],rapor:{},perangkat:[],soal:[],setting:{api:'/api/generate',kktp:70}};
+const DEF={guru:{nama:'',nip:'',sekolah:'',npsn:'',kelas:'',tahun:'2026/2027',semester:'Ganjil',kepsek:'',nipKepsek:''},siswa:[],mapel:[],rpp:[],asesmen:[],jadwal:[],absensi:{},nilai:[],jurnal:[],catatan:{},karakter:{},projek:[],kalender:[],tl:{},instrumen:[],dini:{},diff:[],bahan:[],stem:[],arsip:[],rapor:{},perangkat:[],soal:[],setting:{api:'/api/generate',kktp:70}};
 let db=load();
 function load(){try{const s=JSON.parse(localStorage.getItem(KEY)||'{}');return Object.assign(structuredClone(DEF),s)}catch{return structuredClone(DEF)}}
 function save(){try{localStorage.setItem(KEY,JSON.stringify(db))}catch{toast('Penyimpanan penuh / diblokir browser')}schedAuto()}
@@ -271,14 +271,14 @@ function autoDpl(d){
 const apiBase=kind=>(db.setting.api||'/api/generate').replace(/generate\/?$/,kind);
 function imgToJpeg(file,max=1400){return new Promise((res,rej)=>{const u=URL.createObjectURL(file),i=new Image();i.onload=()=>{const k=Math.min(1,max/Math.max(i.width,i.height)),c=document.createElement('canvas');c.width=Math.round(i.width*k);c.height=Math.round(i.height*k);c.getContext('2d').drawImage(i,0,0,c.width,c.height);URL.revokeObjectURL(u);res(c.toDataURL('image/jpeg',.82))};i.onerror=()=>rej(new Error('Gambar tidak bisa dibuka'));i.src=u})}
 const fileB64=f=>new Promise((res,rej)=>{const r=new FileReader();r.onload=()=>res(String(r.result).split(',')[1]);r.onerror=()=>rej(new Error('Berkas gagal dibaca'));r.readAsDataURL(f)});
-async function readSource(f){
+async function readSource(f,mode){
   if(/^text\//.test(f.type)||/\.(txt|md|csv)$/i.test(f.name||''))return await f.text();
   if(f.size>8*1024*1024)throw new Error('Ukuran maksimal 8 MB');
   let data,type=f.type;
   if(/^image\//.test(f.type)){data=(await imgToJpeg(f)).split(',')[1];type='image/jpeg'}else data=await fileB64(f);
   const c=new AbortController(),tm=setTimeout(()=>c.abort(),90000);
   try{
-    const r=await fetch(apiBase('extract'),{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({name:f.name||'foto.jpg',type,data}),signal:c.signal});
+    const r=await fetch(apiBase('extract'),{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({name:f.name||'foto.jpg',type,data,mode}),signal:c.signal});
     const j=await r.json();if(!j.ok){const e=new Error(j.error||'gagal dibaca');e.srv=1;throw e}
     return j.text||'';
   }catch(e){if(e.srv)throw e;throw new Error(e.name==='AbortError'?'Waktu habis':'AI online belum tersambung — ketik atau tempel teks sumber manual')}
@@ -353,7 +353,7 @@ dashboard:{label:'Dashboard',icon:'🏠',render(v){
   const c={H:0,S:0,I:0,A:0};Object.values(db.absensi[today()]||{}).forEach(x=>c[x]++);
   v.innerHTML=`<div class="wrap"><div class="hero tilt"><div><small>${h}, ${fmtD(today())}</small><h2>Halo, ${esc(g.nama||'Bapak/Ibu Guru')} 👋</h2><p>Kelas ${esc(g.kelas||'-')} • Fase ${faseOf(g.kelas)||'-'} • TA ${esc(g.tahun)} ${esc(g.semester)}</p><button class="btn a" data-act="rppNew">✨ Buat RPP dengan AI</button></div><div class="scene"><div class="cube">${['📚','✏️','🔢','🎨','🌏','🔬'].map(x=>`<i>${x}</i>`).join('')}</div></div></div>
   <div class="grid">${[['siswa','🧒',db.siswa.length,'Siswa'],['mapel','📚',db.mapel.length,'Mata Pelajaran'],['rpp','🧩',db.rpp.length,'RPP'],['jurnal','📖',db.jurnal.length,'Jurnal']].map(([k,i,n,l])=>`<a class="card tilt stat" href="#/${k}"><span>${i}</span><b>${n}</b><small>${l}</small></a>`).join('')}</div>
-  ${backupBanner()}${pulihCard()}${remCard()}${jurCard()}<div class="g2"><div class="card tilt"><h3>🗓️ Jadwal Hari Ini</h3>${js.length?js.map(j=>`<p><b>${j.mulai}–${j.selesai}</b> &nbsp;${esc(nm('mapel',j.mapel))}</p>`).join(''):`<p class="mut">Tidak ada jadwal untuk ${h}.</p>`}</div>
+  ${backupBanner()}${pulihCard()}${remCard()}${jurCard()}${diniCard()}<div class="g2"><div class="card tilt"><h3>🗓️ Jadwal Hari Ini</h3>${js.length?js.map(j=>`<p><b>${j.mulai}–${j.selesai}</b> &nbsp;${esc(nm('mapel',j.mapel))}</p>`).join(''):`<p class="mut">Tidak ada jadwal untuk ${h}.</p>`}</div>
   <div class="card tilt"><h3>✅ Absensi Hari Ini</h3><div><span class="chip c-H">Hadir ${c.H}</span><span class="chip c-S">Sakit ${c.S}</span><span class="chip c-I">Izin ${c.I}</span><span class="chip c-A">Alpa ${c.A}</span></div><a class="btn s t" style="display:inline-block;text-decoration:none;margin-top:6px" href="#/absensi">Isi Absensi</a></div></div>
   <div class="card tilt"><h3>💡 Tips Kurikulum Merdeka</h3><p>${TIPS[new Date().getDate()%TIPS.length]}</p></div></div>`}},
 guru:{label:'Data Guru',icon:'👩‍🏫',render(v){
@@ -891,7 +891,7 @@ function karSiswa(S){
   return `<div class="card"><label style="margin-top:0">Pilih Siswa</label><select id="ksid">${S.map(s=>`<option value="${s.id}" ${s.id===karSid?'selected':''}>${esc(s.nama)}</option>`).join('')}</select></div>
   <div class="card"><h3>Dimensi Profil Lulusan</h3><small class="mut">B = Baru Memulai • K = Berkembang • C = Cakap • M = Mahir. Ketuk lagi untuk menghapus.</small>${DPL.map((n,i)=>`<div class="item" style="margin-top:10px"><div class="im"><b style="font-size:14px">DPL ${i+1}</b><small>${esc(n)}</small></div>${lvBtns('kdim',`data-n="${i+1}"`,k.dim[i+1])}</div>`).join('')}</div>
   <div class="card"><h3>Catatan Perkembangan</h3><textarea id="kcat" placeholder="Contoh: Hari ini Ananda membantu temannya yang kesulitan membaca…" style="min-height:70px"></textarea><div class="row" style="margin-top:10px"><button class="btn t s" data-act="kcatAdd">＋ Simpan Catatan</button></div>
-  ${k.cat.length?[...k.cat].reverse().map(c=>`<div class="note"><div class="im"><small>${fmtD(c.tgl)}</small><p style="margin:2px 0 0;font-size:14px">${esc(c.teks)}</p></div><button class="btn s r" data-act="kcatDel" data-id="${c.id}" aria-label="Hapus">✕</button></div>`).join(''):'<p class="mut" style="margin-top:8px;font-size:13px">Belum ada catatan.</p>'}</div>
+  ${k.cat.length?[...k.cat].reverse().map(c=>`<div class="note"><div class="im"><small>${fmtD(c.tgl)}${c.dpl&&c.dpl.length?' • DPL '+c.dpl.join(', '):''}</small><p style="margin:2px 0 0;font-size:14px">${esc(c.teks)}</p></div><button class="btn s r" data-act="kcatDel" data-id="${c.id}" aria-label="Hapus">✕</button></div>`).join(''):'<p class="mut" style="margin-top:8px;font-size:13px">Belum ada catatan.</p>'}</div>
   <div class="card"><h3>Ringkasan Karakter</h3><textarea data-kr="1" placeholder="Ringkasan perkembangan karakter…">${esc(k.ringkasan)}</textarea><div class="row" style="margin-top:10px"><button class="btn a s" data-act="kAI">✨ Buat dengan AI</button><button class="btn s" data-act="kPrint">🖨 Cetak Siswa Ini</button></div><small class="mut" style="display:block;margin-top:8px">Ringkasan ini ikut dipakai AI saat menyusun catatan wali kelas di menu Rapor.</small></div>`
 }
 function karProjek(S){
@@ -1544,12 +1544,621 @@ async function soalSrc(files){
 Object.assign(ACT,{soalCam:()=>$('#scam').click(),soalUp:()=>$('#sup').click()});
 view.addEventListener('change',e=>{const t=e.target;if(t.id==='scam'||t.id==='sup'){const fs=[...t.files];t.value='';soalSrc(fs)}});
 
+/* ================= ASISTEN AI: tanya jawab data kelas, catatan cepat (suara/foto), rubrik & instrumen ================= */
+
+/* ---------- util: perekam suara (dikte) ---------- */
+let micRec=null;
+function micStart(btn,onText){
+  const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+  if(!SR){toast('Perekam suara belum didukung browser ini. Pakai ikon 🎤 pada keyboard HP.');return}
+  if(micRec){try{micRec.stop()}catch(e){}return}
+  const r=new SR(),lbl=btn.textContent;r.lang='id-ID';r.continuous=true;r.interimResults=false;
+  r.onresult=e=>{let t='';for(let i=e.resultIndex;i<e.results.length;i++)if(e.results[i].isFinal)t+=e.results[i][0].transcript+' ';t=t.trim();if(t)onText(t)};
+  r.onerror=e=>toast(e.error==='not-allowed'?'Izin mikrofon ditolak — aktifkan di pengaturan browser':'Suara tidak terbaca ('+e.error+')');
+  r.onend=()=>{micRec=null;btn.textContent=lbl};
+  micRec=r;btn.textContent='⏹ Berhenti';try{r.start()}catch(e){micRec=null;btn.textContent=lbl}
+}
+const appendTa=(sel,state,k,t)=>{state[k]=(state[k]?state[k]+' ':'')+t;const ta=view.querySelector(sel);if(ta){ta.value=state[k];grow(ta)}};
+
+/* ---------- 1. ASISTEN KELAS (tanya jawab dari data aplikasi) ---------- */
+let chat=[],chatTxt='';
+function kelasCtx(){
+  const g=db.guru,D=absSem(),k=kktp(),S=sortSiswa();
+  const L=S.slice(0,45).map(s=>{
+    const r=D.rows.find(x=>x.s.id===s.id)||{t:{H:0,S:0,I:0,A:0},pct:null},nl=raporData(s.id).map(d=>`${d.nama} ${d.rata}`).join(', ')||'-',kd=KG(s.id).dim,
+      kk=DPL.map((n,i)=>kd[i+1]?`${n.split(' ')[0]}:${LVN[kd[i+1]]}`:'').filter(Boolean).join(', ');
+    return `${s.nama}(${s.jk||'?'}) hadir ${r.t.H}, sakit ${r.t.S}, izin ${r.t.I}, alpa ${r.t.A}${r.pct!=null?' ('+r.pct+'%)':''} | nilai: ${nl}${kk?' | karakter: '+kk:''}`});
+  const ev=db.kalender.filter(e=>evEnd(e)>=today()).sort((a,b)=>a.tanggal.localeCompare(b.tanggal)).slice(0,5).map(e=>`${e.tanggal} ${e.judul}`);
+  return `Kelas ${g.kelas||'-'}, TA ${g.tahun} ${g.semester}, KKTP ${k}, ${S.length} siswa, hari efektif absensi semester ini ${D.eff}.\nSiswa (rekap semester):\n${L.join('\n')}${ev.length?'\nAgenda: '+ev.join('; '):''}`.slice(0,7000)
+}
+const QUICK=[['alpa','Siapa paling sering tidak hadir?'],['remedial','Siapa perlu remedial?'],['rata','Rata-rata kelas per mapel'],['top','5 nilai tertinggi'],['risiko','Siswa perlu perhatian khusus']];
+function localQ(key){
+  const S=sortSiswa(),D=absSem(),k=kktp();
+  if(!S.length)return'Data siswa masih kosong.';
+  const sr=s=>D.rows.find(x=>x.s.id===s.id)||{t:{H:0,S:0,I:0,A:0},pct:null},avgS=s=>{const n=raporData(s.id);return n.length?Math.round(n.reduce((a,x)=>a+x.rata,0)/n.length*10)/10:null};
+  if(key==='alpa'){
+    if(!D.eff)return'Belum ada absensi tercatat pada semester ini.';
+    const L=S.map(s=>({s,t:sr(s).t,pct:sr(s).pct})).filter(x=>x.t.A+x.t.S+x.t.I>0).sort((a,b)=>b.t.A-a.t.A||(b.t.S+b.t.I)-(a.t.S+a.t.I)).slice(0,5);
+    return L.length?'Ketidakhadiran terbanyak semester ini:\n'+L.map((x,i)=>`${i+1}. ${x.s.nama} — Alpa ${x.t.A}, Sakit ${x.t.S}, Izin ${x.t.I} (hadir ${x.pct}%)`).join('\n'):'Semua siswa hadir penuh pada hari yang tercatat 🎉'}
+  if(key==='remedial'){
+    const out=db.mapel.map(m=>{const L=S.map(s=>{const d=raporData(s.id).find(x=>x.id===m.id);return d&&d.rata<k?`${s.nama} (${d.rata})`:null}).filter(Boolean);return L.length?`${m.nama}: ${L.join(', ')}`:null}).filter(Boolean);
+    return out.length?`Siswa dengan rata-rata di bawah KKTP (${k}):\n`+out.join('\n'):`Tidak ada siswa di bawah KKTP (${k}) berdasarkan nilai yang tercatat.`}
+  if(key==='rata'){
+    const out=db.mapel.map(m=>{const v=S.map(s=>{const d=raporData(s.id).find(x=>x.id===m.id);return d?d.rata:null}).filter(x=>x!==null);return v.length?`${m.nama}: ${Math.round(v.reduce((a,b)=>a+b,0)/v.length*10)/10} (tuntas ${Math.round(v.filter(x=>x>=k).length/v.length*100)}%)`:null}).filter(Boolean);
+    return out.length?'Rata-rata kelas per mata pelajaran:\n'+out.join('\n'):'Belum ada nilai tercatat.'}
+  if(key==='top'){
+    const L=S.map(s=>({s,a:avgS(s)})).filter(x=>x.a!==null).sort((a,b)=>b.a-a.a).slice(0,5);
+    return L.length?'Rata-rata nilai tertinggi:\n'+L.map((x,i)=>`${i+1}. ${x.s.nama} — ${x.a}`).join('\n'):'Belum ada nilai tercatat.'}
+  if(key==='risiko'){
+    const L=S.map(s=>{const t=sr(s),r=[],low=raporData(s.id).filter(d=>d.rata<k);
+      if(D.eff&&t.pct!==null&&t.pct<80)r.push(`kehadiran ${t.pct}%`);if(t.t.A>=3)r.push(`alpa ${t.t.A} hari`);if(low.length>=2)r.push(`${low.length} mapel di bawah KKTP`);
+      return r.length?`${s.nama}: ${r.join(', ')}`:null}).filter(Boolean);
+    return L.length?'Perlu perhatian khusus:\n'+L.join('\n'):'Tidak ada siswa yang memenuhi kriteria perhatian khusus (kehadiran di bawah 80%, alpa 3 hari atau lebih, atau 2 mapel di bawah KKTP).'}
+  return''
+}
+defs.asisten={label:'Asisten Kelas',icon:'🤖',render(v){
+  v.innerHTML=`<div class="wrap"><div class="card"><h3>🤖 Asisten Kelas</h3><p class="mut" style="font-size:13px">Tanya apa saja tentang data kelas Anda: kehadiran, nilai, karakter. Tombol cepat dijawab langsung dari data (tanpa AI, angkanya pasti). Pertanyaan bebas dijawab AI berdasarkan rekap data kelas.</p>
+  <div style="margin-top:8px">${QUICK.map(([k,l])=>`<button class="btn s g" style="margin:0 6px 8px 0" data-act="chatQuick" data-k="${k}">${l}</button>`).join('')}</div></div>
+  <div class="card" id="chatbox">${chat.length?chat.map(m=>`<div style="display:flex;justify-content:${m.r==='u'?'flex-end':'flex-start'};margin:8px 0"><div style="max-width:88%;padding:10px 13px;border-radius:16px;white-space:pre-wrap;font-size:14px;${m.r==='u'?'background:#efeaff':'background:#f1fffc;border:1px solid #bfeee6'}">${esc(m.t)}</div></div>`).join(''):'<p class="mut" style="text-align:center;margin:12px 0">Belum ada percakapan. Coba tombol cepat di atas atau ketik pertanyaan.</p>'}</div>
+  <div class="card"><textarea data-ch="1" style="min-height:64px" placeholder="mis. Siapa yang kehadirannya turun dan perlu surat ke orang tua?">${esc(chatTxt)}</textarea>
+  <div class="row" style="margin-top:10px"><button class="btn t" data-act="chatSend">Kirim</button><button class="btn a s" data-act="chatMic">🎤 Bicara</button>${chat.length?'<button class="btn g s" data-act="chatClear">Hapus percakapan</button>':''}</div></div></div>`;
+  v.querySelectorAll('textarea[data-ch]').forEach(grow)}};
+Object.assign(ACT,{
+  chatQuick:d=>{const q=QUICK.find(x=>x[0]===d.k);chat.push({r:'u',t:q[1]},{r:'a',t:localQ(d.k)});go();const b=$('#chatbox');if(b&&b.scrollIntoView)b.scrollIntoView({block:'end'})},
+  chatClear:()=>{chat=[];go()},
+  chatMic:(d,b)=>micStart(b,t=>appendTa('textarea[data-ch]',{get chatTxt(){return chatTxt},set chatTxt(x){chatTxt=x}},'chatTxt',t)),
+  chatSend:(d,b)=>busy(b,'⏳ Berpikir…',async()=>{
+    const q=chatTxt.trim();if(!q){toast('Tulis pertanyaannya dulu');return}
+    if(!db.siswa.length){toast('Isi Data Siswa dulu');return}
+    chat.push({r:'u',t:q});chatTxt='';
+    try{const r=await tugas('tanya',{pertanyaan:q,konteks:kelasCtx(),riwayat:chat.slice(-9,-1).map(m=>({r:m.r,t:m.t.slice(0,300)}))},70000);
+      const t=norm(r&&r.jawaban).trim();if(!t)throw new Error('kosong');chat.push({r:'a',t})}
+    catch(e){chat.push({r:'a',t:'AI belum tersambung, jadi pertanyaan bebas belum bisa dijawab. Tombol cepat di atas tetap berfungsi tanpa AI.'})}
+    go()})
+});
+
+/* ---------- 2. CATATAN CEPAT (ketik / suara / foto tulisan tangan) ---------- */
+let ccS={txt:'',items:null};
+function ccLocal(text){
+  const S=sortSiswa(),out=[];
+  String(text).split(/[\n;]+|(?<=[.!?])\s+/).map(x=>x.trim()).filter(x=>x.length>3).forEach(seg=>{
+    const n=NORMN(seg);let best=null;
+    S.forEach(s=>{const full=NORMN(s.nama),first=full.split(' ')[0];
+      [[full,2],[first,1]].forEach(([k,w])=>{if(k&&(n===k||n.startsWith(k+' ')||n.includes(' '+k+' ')||n.endsWith(' '+k))&&(!best||w>best.w||(w===best.w&&k.length>best.k.length)))best={s,w,k}})});
+    if(best){const firstMatches=best.w===1?S.filter(s=>NORMN(s.nama).split(' ')[0]===best.k).length:1;
+      out.push({nama:best.s.nama,s:firstMatches===1?best.s:null,teks:seg.replace(/[.!?]*$/,'')+'.',dpl:[],on:firstMatches===1})}});
+  return out
+}
+async function ccParse(){
+  const t=ccS.txt.trim();if(t.length<6)throw new Error('Tulis, rekam, atau foto catatannya dulu');
+  let items=null,ai=false;
+  try{const r=await tugas('catatan',{teks:t.slice(0,5000),siswa:sortSiswa().map(s=>s.nama).slice(0,60),kelas:db.guru.kelas},70000);
+    items=asArr(r&&r.catatan).map(x=>{const s=siswaRes(cl(norm(x&&x.nama)));return{nama:cl(norm(x&&x.nama)),s,teks:cl(norm(x&&x.teks)),dpl:asArr(x&&x.dpl).map(Number).filter(n=>n>=1&&n<=8),on:!!s}}).filter(x=>x.teks);
+    ai=items.length>0}catch(e){}
+  if(!ai)items=ccLocal(t);
+  if(!items.length)throw new Error('Tidak ada nama siswa yang dikenali. Tulis dengan menyebut nama siswa.');
+  ccS.items=items;return ai
+}
+defs.catcepat={label:'Catatan Cepat',icon:'🎙️',render(v){
+  if(!db.siswa.length){v.innerHTML='<div class="wrap"><div class="card empty"><b>🎙️</b>Isi Data Siswa dulu.</div></div>';return}
+  const I=ccS.items;
+  v.innerHTML=`<div class="wrap"><div class="card"><h3>🎙️ Catatan Perkembangan Cepat</h3><p class="mut" style="font-size:13px">Ucapkan atau tulis pengamatan Anda untuk beberapa siswa sekaligus, mis. “Rafi hari ini membantu temannya membereskan buku. Sinta berani presentasi di depan kelas.” AI memisahkan per siswa dan merapikannya jadi catatan karakter.</p>
+  <textarea data-cc="1" style="min-height:110px;margin-top:8px" placeholder="Ketik, rekam suara, atau foto catatan tulisan tangan…">${esc(ccS.txt)}</textarea>
+  <div class="row" style="margin-top:10px"><button class="btn a s" data-act="ccMic">🎤 Rekam</button><button class="btn s" data-act="ccCam">📷 Foto Catatan</button><button class="btn g s" data-act="ccUp">📎 Berkas</button></div>
+  <input type="file" id="ccc" accept="image/*" capture="environment" hidden><input type="file" id="ccf" accept="image/*,.pdf,.docx,.txt" multiple hidden>
+  <div class="row" style="margin-top:12px"><button class="btn t" data-act="ccGo">✨ Pisahkan per Siswa</button></div></div>
+  ${I?`<div class="card"><h3>Pratinjau (${I.filter(x=>x.on&&x.s).length} dipilih)</h3>${I.map((x,i)=>`<div class="note"><input type="checkbox" data-cck="${i}" style="width:auto;margin-top:8px;box-shadow:none" ${x.on&&x.s?'checked':''} ${x.s?'':'disabled'}><div class="im"><b style="font-size:14px">${x.s?esc(x.s.nama):'⚠ '+esc(x.nama||'Nama tidak dikenali')}</b>${x.dpl.length?`<small>DPL ${x.dpl.join(', ')}</small>`:''}<textarea data-cct="${i}" style="min-height:56px;margin-top:6px">${esc(x.teks)}</textarea></div></div>`).join('')}
+  <div class="row" style="margin-top:14px"><button class="btn t" data-act="ccSave">✅ Simpan ke Profil Siswa</button><button class="btn g" data-act="ccClear">Batal</button></div></div>`:''}</div>`;
+  v.querySelectorAll('textarea[data-cc],textarea[data-cct]').forEach(grow)}};
+async function ccRead(files){
+  for(const f of files){try{toast('⏳ Membaca '+(f.name||'foto')+'…');const t=(await readSource(f)).trim();if(t)ccS.txt=(ccS.txt?ccS.txt+'\n':'')+t;else toast('Tidak ada teks terbaca — coba foto lebih jelas')}catch(e){toast(String(e.message||e).slice(0,100))}}
+  go()
+}
+Object.assign(ACT,{
+  ccMic:(d,b)=>micStart(b,t=>appendTa('textarea[data-cc]',ccS,'txt',t)),
+  ccCam:()=>$('#ccc').click(),ccUp:()=>$('#ccf').click(),
+  ccGo:(d,b)=>busy(b,'⏳ AI memisahkan…',async()=>{try{const ai=await ccParse();toast(ai?'Selesai ✨ — periksa lalu simpan':'AI belum tersambung — dipisah dari nama yang ditemukan, periksa lagi')}catch(e){toast(String(e.message||e).slice(0,110))}go()}),
+  ccSave:()=>{const L=(ccS.items||[]).filter(x=>x.on&&x.s&&cl(x.teks));if(!L.length){toast('Belum ada catatan yang dipilih');return}
+    L.forEach(x=>KR(x.s.id).cat.push({id:uid(),tgl:today(),teks:cl(x.teks),dpl:x.dpl}));save();ccS={txt:'',items:null};toast(`${L.length} catatan tersimpan ke profil siswa ✅`);go()},
+  ccClear:()=>{ccS.items=null;go()}
+});
+
+/* ---------- 4. RUBRIK & INSTRUMEN ASESMEN ---------- */
+const INS={rubrik:'Rubrik Penilaian',observasi:'Lembar Observasi',angket:'Angket / Asesmen Diagnostik',checklist:'Daftar Periksa Projek'};
+let insEdit=null;
+const blankIns=()=>({id:null,jenis:'rubrik',rppId:'',mapel:'',kelas:db.guru.kelas||'3',topik:'',tp:'',catatan:'',data:null,updated:''});
+function insNorm(j,r){
+  const a=x=>cl(norm(x)),L=x=>asArr(x).map(a).filter(Boolean);r=r||{};
+  if(j==='rubrik')return{judul:a(r.judul),tujuan:a(r.tujuan),kriteria:asArr(r.kriteria).map(k=>({kriteria:a(k&&k.kriteria),baru:a(k&&k.baru),berkembang:a(k&&k.berkembang),cakap:a(k&&k.cakap),mahir:a(k&&k.mahir)})).filter(k=>k.kriteria).slice(0,8)};
+  if(j==='observasi')return{judul:a(r.judul),petunjuk:a(r.petunjuk),aspek:asArr(r.aspek).map(k=>({aspek:a(k&&k.aspek),indikator:a(k&&k.indikator)})).filter(k=>k.aspek).slice(0,8)};
+  if(j==='angket')return{judul:a(r.judul),petunjuk:a(r.petunjuk),pernyataan:L(r.pernyataan).slice(0,15)};
+  return{judul:a(r.judul),tahap:asArr(r.tahap).map(k=>({tahap:a(k&&k.tahap),kegiatan:L(k&&k.kegiatan).slice(0,6)})).filter(k=>k.tahap).slice(0,8)}
+}
+function insLocal(d){
+  const t=d.topik||'topik pembelajaran',j=d.jenis;
+  if(j==='rubrik')return{judul:`Rubrik Penilaian ${t}`,tujuan:d.tp||`Menilai capaian peserta didik pada ${t}.`,kriteria:[
+    {kriteria:'Ketepatan isi / konsep',baru:'Banyak konsep belum tepat.',berkembang:'Sebagian konsep tepat, perlu bimbingan.',cakap:'Konsep tepat dengan sedikit kekeliruan.',mahir:'Seluruh konsep tepat dan dijelaskan dengan baik.'},
+    {kriteria:'Kelengkapan hasil kerja',baru:'Hasil kerja belum lengkap.',berkembang:'Sebagian hasil kerja lengkap.',cakap:'Hasil kerja lengkap.',mahir:'Hasil kerja lengkap dan disertai pengembangan.'},
+    {kriteria:'Kerja sama dan sikap',baru:'Perlu diingatkan untuk terlibat.',berkembang:'Terlibat bila diarahkan.',cakap:'Terlibat aktif dan menghargai teman.',mahir:'Aktif, menghargai teman, dan membantu kelompok.'},
+    {kriteria:'Kerapian / penyajian',baru:'Penyajian belum rapi.',berkembang:'Penyajian cukup rapi.',cakap:'Penyajian rapi dan jelas.',mahir:'Penyajian rapi, jelas, dan kreatif.'}]};
+  if(j==='observasi')return{judul:`Lembar Observasi ${t}`,petunjuk:'Beri skor 1–4 untuk tiap aspek (1 Baru Memulai, 2 Berkembang, 3 Cakap, 4 Mahir).',aspek:[{aspek:'Keaktifan',indikator:'Bertanya, menjawab, dan terlibat dalam kegiatan.'},{aspek:'Kerja sama',indikator:'Bekerja sama dan menghargai pendapat teman.'},{aspek:'Tanggung jawab',indikator:'Menyelesaikan tugas tepat waktu dan merapikan alat.'},{aspek:'Percaya diri',indikator:'Berani menyampaikan pendapat atau hasil kerja.'}]};
+  if(j==='angket')return{judul:`Asesmen Diagnostik ${t}`,petunjuk:'Beri tanda centang sesuai keadaanmu. Tidak ada jawaban salah.',pernyataan:[`Aku sudah pernah belajar tentang ${t}.`,`Aku bisa menjelaskan ${t} dengan kata-kataku sendiri.`,'Aku senang belajar bersama teman.','Aku berani bertanya jika belum paham.','Aku bisa mengerjakan soal latihan sendiri.']};
+  return{judul:`Daftar Periksa Projek ${t}`,tahap:[{tahap:'Persiapan',kegiatan:['Menentukan tema dan tujuan projek.','Membagi kelompok dan tugas.','Menyiapkan alat dan bahan.']},{tahap:'Pelaksanaan',kegiatan:['Mengerjakan projek sesuai rencana.','Mencatat proses dan kendala.','Berdiskusi dan saling membantu.']},{tahap:'Penyajian',kegiatan:['Menyiapkan hasil untuk disajikan.','Mempresentasikan hasil projek.','Menerima masukan teman.']},{tahap:'Refleksi',kegiatan:['Menyampaikan hal yang dipelajari.','Menyebutkan yang perlu diperbaiki.']}]}
+}
+function insHtml(d){
+  const x=d.data;if(!x)return'';
+  const info=`<p>Mata pelajaran: <b>${esc(d.mapel||'-')}</b> • Kelas ${esc(d.kelas||'-')}${d.topik?' • Topik: '+esc(d.topik):''}</p>`;
+  if(d.jenis==='rubrik')return hasil(esc((x.judul||'RUBRIK PENILAIAN').toUpperCase()))+info+(x.tujuan?`<p>Tujuan: ${esc(x.tujuan)}</p>`:'')+dtab(['Kriteria','Baru Memulai','Berkembang','Cakap','Mahir'],x.kriteria.map(k=>[k.kriteria,k.baru,k.berkembang,k.cakap,k.mahir]));
+  if(d.jenis==='observasi')return LAND+hasil(esc((x.judul||'LEMBAR OBSERVASI').toUpperCase()))+info+(x.petunjuk?`<p>${esc(x.petunjuk)}</p>`:'')
+    +dtab(['Kode','Aspek','Indikator yang diamati'],x.aspek.map((k,i)=>['A'+(i+1),k.aspek,k.indikator]))
+    +`<p style="margin-top:10px"><b>Lembar Skor</b></p>`+dtab(['No','Nama',...x.aspek.map((_,i)=>'A'+(i+1)),'Catatan'],sortSiswa().map((s,i)=>[i+1,s.nama,...x.aspek.map(()=>''),'']));
+  if(d.jenis==='angket')return hasil(esc((x.judul||'ASESMEN DIAGNOSTIK').toUpperCase()))+info+`<p>Nama: ........................................ Tanggal: ................</p>`+(x.petunjuk?`<p>${esc(x.petunjuk)}</p>`:'')
+    +dtab(['No','Pernyataan','Sudah','Mulai','Belum'],x.pernyataan.map((p,i)=>[i+1,p,'☐','☐','☐']));
+  return hasil(esc((x.judul||'DAFTAR PERIKSA PROJEK').toUpperCase()))+info+dtab(['Tahap','Kegiatan','Selesai','Tanggal','Catatan'],x.tahap.flatMap(t=>t.kegiatan.map((k,i)=>[i===0?t.tahap:'',k,'☐','',''])))
+}
+function insPage(v){
+  if(!insEdit){
+    v.innerHTML=`<div class="wrap"><div class="hero tilt"><div><h2>Rubrik & Instrumen</h2><p>Rubrik penilaian, lembar observasi (daftar siswa terisi otomatis), angket diagnostik, dan daftar periksa projek, dibuat AI dari topik atau RPP Anda.</p><button class="btn a" data-act="insNew">✨ Buat Baru</button></div></div>
+    ${db.instrumen.length?[...db.instrumen].reverse().map(r=>`<div class="card tilt item"><div class="ib">🧾</div><div class="im"><b>${esc((r.data&&r.data.judul)||r.topik||INS[r.jenis])}</b><small>${INS[r.jenis]} • ${esc(r.mapel||'-')} • Kelas ${esc(r.kelas)} • ${fmtD(r.updated)}</small></div><div class="ia"><button class="btn s g" data-act="insOpen" data-id="${r.id}">Buka</button><button class="btn s r" data-act="insDel" data-id="${r.id}" aria-label="Hapus">🗑</button></div></div>`).join(''):'<div class="card empty"><b>🧾</b>Belum ada instrumen. Tekan “Buat Baru”.</div>'}</div>`;return}
+  const d=insEdit;
+  v.innerHTML=`<div class="wrap"><div class="card"><div class="row" style="justify-content:space-between"><h3>${d.id?'Ubah':'Buat'} Instrumen</h3><button class="btn s g" data-act="insBack">← Kembali</button></div>
+  <label>Jenis</label><select data-if="jenis">${Object.entries(INS).map(([k,l])=>`<option value="${k}" ${k===d.jenis?'selected':''}>${l}</option>`).join('')}</select>
+  <label>Ambil dari RPP (opsional)</label><select id="irpp"><option value="">— tanpa RPP —</option>${db.rpp.map(r=>`<option value="${r.id}" ${r.id===d.rppId?'selected':''}>${esc(r.mapel)} — ${esc(r.topik)}</option>`).join('')}</select>
+  <div class="g2"><div><label>Mata Pelajaran</label><input data-if="mapel" value="${esc(d.mapel)}"></div><div><label>Kelas</label><select data-if="kelas">${KELAS.map(k=>`<option ${k==d.kelas?'selected':''}>${k}</option>`).join('')}</select></div></div>
+  <label>Topik</label><input data-if="topik" value="${esc(d.topik)}"><label>Tujuan Pembelajaran</label><textarea data-if="tp" style="min-height:70px">${esc(d.tp)}</textarea>
+  <label>Yang dinilai / catatan (opsional)</label><input data-if="catatan" value="${esc(d.catatan)}" placeholder="mis. praktik membaca puisi, kerja kelompok">
+  <div class="row" style="margin-top:14px"><button class="btn a" data-act="insAI">✨ Buat dengan AI</button></div></div>
+  ${d.data?`<div class="card"><h3>Hasil</h3><div class="tbl">${insHtml(d).replace(LAND,'')}</div><div class="row" style="margin-top:14px"><button class="btn t" data-act="insSave">💾 Simpan</button><button class="btn" data-act="insPrint">🖨 Cetak</button></div></div>`:''}</div>`;
+  v.querySelectorAll('textarea[data-if]').forEach(grow)}
+defs.instrumen={label:'Rubrik & Instrumen',icon:'🧾',render:insPage};
+Object.assign(ACT,{
+  insNew:()=>{insEdit=blankIns();go()},
+  insOpen:d=>{insEdit=Object.assign(blankIns(),structuredClone(db.instrumen.find(x=>x.id===d.id)));go()},
+  insDel:d=>{if(confirm('Hapus instrumen ini?')){db.instrumen=db.instrumen.filter(x=>x.id!==d.id);save();go()}},
+  insBack:()=>{insEdit=null;go()},
+  insSave:()=>{const d=insEdit;if(!d||!d.data){toast('Buat isinya dulu');return}d.updated=today();if(!d.id){d.id=uid();db.instrumen.push(structuredClone(d))}else db.instrumen=db.instrumen.map(x=>x.id===d.id?structuredClone(d):x);save();toast('Instrumen tersimpan ✅')},
+  insPrint:()=>{if(insEdit&&insEdit.data)doPrint(insHtml(insEdit))},
+  insAI:(b0,b)=>busy(b,'⏳ AI menyusun…',async()=>{
+    const d=insEdit;if(!cl(d.topik)&&!cl(d.mapel)){toast('Isi mata pelajaran atau topik dulu');return}
+    try{const r=await tugas('instrumen',{jenis:d.jenis,mapel:d.mapel,kelas:d.kelas,fase:faseOf(d.kelas),topik:d.topik,tp:d.tp,catatan:d.catatan},85000);
+      const x=insNorm(d.jenis,r),n=x.kriteria||x.aspek||x.pernyataan||x.tahap;if(!n||!n.length)throw new Error('kosong');d.data=x;toast('Instrumen selesai ✨ — periksa lalu simpan')}
+    catch(e){d.data=insNorm(d.jenis,insLocal(d));toast('AI belum tersambung — memakai template umum, sesuaikan seperlunya')}
+    insPage(view)})
+});
+function insPick(id){const r=db.rpp.find(x=>x.id===id),d=insEdit;d.rppId=id;if(r){d.mapel=r.mapel;d.kelas=r.kelas;d.topik=r.topik;d.tp=r.tp||''}insPage(view)}
+
+/* ---------- pendengar & menu ---------- */
+view.addEventListener('input',e=>{const t=e.target;
+  if(t.dataset.ch!==undefined)chatTxt=t.value;
+  if(t.dataset.cc!==undefined)ccS.txt=t.value;
+  if(t.dataset.cct!==undefined&&ccS.items&&ccS.items[+t.dataset.cct])ccS.items[+t.dataset.cct].teks=t.value;
+  if(t.dataset.if&&insEdit){insEdit[t.dataset.if]=t.value;if(t.tagName==='TEXTAREA')grow(t)}});
+view.addEventListener('change',e=>{const t=e.target;
+  if(t.dataset.cck!==undefined&&ccS.items&&ccS.items[+t.dataset.cck])ccS.items[+t.dataset.cck].on=t.checked;
+  if(t.id==='ccc'||t.id==='ccf'){const fs=[...t.files];t.value='';ccRead(fs)}
+  if(t.id==='irpp'&&insEdit)insPick(t.value)});
+view.addEventListener('keydown',e=>{if(e.key==='Enter'&&(e.ctrlKey||e.metaKey)&&e.target.dataset&&e.target.dataset.ch!==undefined){e.preventDefault();ACT.chatSend({},{textContent:'',disabled:false})}});
+['asisten','catcepat','instrumen'].forEach(k=>PAGES[k]=defs[k]);
+{const tmp={...PAGES};Object.keys(PAGES).forEach(k=>delete PAGES[k]);['dashboard','asisten','guru','impor','siswa','mapel','kalender','rpp','perangkat','soal','instrumen','asesmen','jadwal','absensi','absrekap','nilai','nilaicepat','leger','tl','catcepat','karakter','rapor','kartu','jurnal','surat','rekap','excel','wali','tahun','setting'].forEach(k=>{if(tmp[k])PAGES[k]=tmp[k]})}
+
+
+/* ================= LANJUTAN: peringatan dini, RPP diferensiasi, bahan ajar, dokumen kinerja, periksa jawaban ================= */
+
+/* ---------- 8. SISWA PERLU PERHATIAN (peringatan dini) ---------- */
+function diniData(){
+  const S=sortSiswa(),D=absSem(),k=kktp();
+  return S.map(s=>{
+    const r=D.rows.find(x=>x.s.id===s.id)||{t:{H:0,S:0,I:0,A:0},pct:null},al=[],low=raporData(s.id).filter(d=>d.rata<k);let sc=0;
+    if(D.eff>=3&&r.pct!==null&&r.pct<80){al.push(`kehadiran ${r.pct}%`);sc+=1}
+    if(r.t.A>=3){al.push(`alpa ${r.t.A} hari`);sc+=r.t.A>=5?2:1}
+    if(low.length>=2){al.push(`${low.length} mapel di bawah KKTP (${low.map(d=>d.nama).join(', ')})`);sc+=low.length>=3?2:1}
+    else if(low.length===1){al.push(`1 mapel di bawah KKTP (${low[0].nama})`);sc+=0.5}
+    const dr=db.mapel.filter(m=>{const v=db.nilai.filter(n=>n.siswa===s.id&&n.mapel===m.id&&n.tanggal&&n.nilai!==''&&n.nilai!=null).sort((a,b)=>a.tanggal.localeCompare(b.tanggal)).map(n=>+n.nilai);
+      if(v.length<4)return false;const h=Math.floor(v.length/2),av=a=>a.reduce((x,y)=>x+y,0)/a.length;return av(v.slice(h))-av(v.slice(0,h))<=-10}).map(m=>m.nama);
+    if(dr.length){al.push(`nilai menurun pada ${dr.join(', ')}`);sc+=1}
+    const kd=KG(s.id).dim;if(Object.values(kd).filter(x=>x==='B').length>=3){al.push('beberapa dimensi karakter masih Baru Memulai');sc+=0.5}
+    return{s,al,sc,low,r,absen:r.t.A>=3||(D.eff>=3&&r.pct!==null&&r.pct<80)}
+  }).filter(x=>x.sc>=1).sort((a,b)=>b.sc-a.sc)
+}
+const diniLv=sc=>sc>=3?['Tinggi','c-A']:sc>=2?['Sedang','c-S']:['Dipantau','c-I'];
+function diniLocal(x){
+  const t=[];
+  if(x.absen)t.push('Hubungi orang tua/wali untuk menanyakan penyebab ketidakhadiran dan catat kesepakatannya.','Pantau kehadiran ananda setiap hari selama 2 minggu ke depan.');
+  if(x.low.length)t.push(`Beri pendampingan kecil (tutor sebaya atau bimbingan 10–15 menit) pada ${x.low.map(d=>d.nama).slice(0,3).join(', ')}.`,'Lakukan asesmen ulang singkat setelah pendampingan.');
+  t.push('Ajak ananda berbincang untuk mengetahui kendala belajar atau di rumah, lalu sepakati langkah kecil yang bisa dicoba.');
+  return t.slice(0,5)
+}
+defs.dini={label:'Siswa Perlu Perhatian',icon:'⚠️',render(v){
+  if(!db.siswa.length){v.innerHTML='<div class="wrap"><div class="card empty"><b>⚠️</b>Isi Data Siswa, Absensi, dan Nilai dulu.</div></div>';return}
+  const L=diniData();
+  v.innerHTML=`<div class="wrap"><div class="card"><h3>⚠️ Peringatan Dini</h3><p class="mut" style="font-size:13px">Dihitung otomatis dari absensi dan nilai semester ini: kehadiran di bawah 80%, alpa 3 hari atau lebih, dua mapel atau lebih di bawah KKTP (${kktp()}), atau nilai menurun. Ini penanda untuk perhatian, bukan penilaian terhadap anak.</p></div>
+  ${L.length?L.map(x=>{const [lv,cc]=diniLv(x.sc),sv=db.dini[x.s.id];return `<div class="card"><div class="row" style="justify-content:space-between"><b>${esc(x.s.nama)}</b><span class="chip ${cc}">${lv}</span></div><ul style="margin:8px 0 0 20px;font-size:14px">${x.al.map(a=>`<li>${esc(a)}</li>`).join('')}</ul>
+  ${sv?`<div style="margin-top:10px;padding:10px;border-radius:12px;background:#faf9ff"><b>Saran tindak lanjut</b> <small class="mut">(${fmtD(sv.tgl)})</small><ol style="margin:4px 0 0 20px;font-size:14px">${sv.saran.map(a=>`<li>${esc(a)}</li>`).join('')}</ol></div>`:''}
+  <div class="row" style="margin-top:12px"><button class="btn t s" data-act="diniAI" data-id="${x.s.id}">✨ ${sv?'Susun Ulang':'Saran'} Tindak Lanjut</button><button class="btn s" data-act="diniSurat" data-id="${x.s.id}">✉ Surat ke Orang Tua</button></div></div>`}).join(''):'<div class="card empty"><b>🎉</b>Tidak ada siswa yang memenuhi kriteria perhatian khusus saat ini.</div>'}</div>`}};
+function diniCard(){
+  if(!db.siswa.length)return'';const n=diniData().filter(x=>x.sc>=2).length;if(!n)return'';
+  return `<a class="card tilt" href="#/dini" style="border-left:6px solid var(--r)"><b>⚠️ ${n} siswa perlu perhatian</b><p class="mut" style="margin-top:6px">Dari kehadiran dan nilai semester ini. Ketuk untuk melihat dan menyusun tindak lanjut.</p></a>`
+}
+Object.assign(ACT,{
+  diniAI:(d,b)=>busy(b,'⏳ AI menyusun…',async()=>{
+    const x=diniData().find(y=>y.s.id===d.id);if(!x)return;let saran=null;
+    try{const r=await tugas('dini',{nama:x.s.nama,jk:x.s.jk,kelas:db.guru.kelas,alasan:x.al,nilai:raporData(x.s.id).map(m=>({mapel:m.nama,rata:m.rata}))},60000);
+      saran=asArr(r&&r.saran).map(a=>cl(norm(a))).filter(Boolean).slice(0,5);if(!saran.length)saran=null}catch(e){}
+    db.dini[x.s.id]={tgl:today(),saran:saran||diniLocal(x)};save();toast(saran?'Saran tindak lanjut selesai ✨':'AI belum tersambung — memakai saran umum');go()}),
+  diniSurat:d=>{const x=diniData().find(y=>y.s.id===d.id);srt.jenis=x&&x.absen?'absen':'remedial';srt.sid=d.id;srt.isi=suratBuild();location.hash='#/surat'}
+});
+
+/* ---------- 5. RPP DIFERENSIASI ---------- */
+const DIFV={pendampingan:'Perlu pendampingan',pengayaan:'Cepat paham / pengayaan',visual:'Gaya belajar visual',auditori:'Gaya belajar auditori',kinestetik:'Gaya belajar kinestetik'};
+let dfEdit=null;
+const blankDf=()=>({id:null,rppId:'',mapel:'',kelas:db.guru.kelas||'3',topik:'',catatan:'',pilih:['pendampingan','pengayaan'],data:null,updated:''});
+function dfNorm(r,pilih){
+  const a=x=>cl(norm(x));
+  const v=asArr(r&&r.varian).map(x=>({kode:Object.keys(DIFV).includes(a(x&&x.kode))?a(x.kode):'',judul:a(x&&x.judul),profil:a(x&&x.profil),kegiatan:asArr(x&&x.kegiatan).map(a).filter(Boolean).slice(0,6),asesmen:a(x&&x.asesmen)})).filter(x=>x.kegiatan.length);
+  v.forEach((x,i)=>{if(!x.kode)x.kode=pilih[i]||pilih[0];if(!x.judul)x.judul=DIFV[x.kode]});return v
+}
+function dfLocal(d){
+  const t=d.topik||'materi';
+  const G={pendampingan:{profil:'Peserta didik yang membutuhkan bimbingan lebih untuk memahami konsep dasar.',kegiatan:[`Mengulang konsep dasar ${t} dengan alat peraga atau benda konkret.`,'Belajar dalam kelompok kecil bersama guru atau tutor sebaya.','Mengerjakan latihan bertahap dari mudah ke sulit disertai umpan balik langsung.','Menjelaskan kembali dengan kata sendiri.'],asesmen:'Pengamatan dan tanya jawab singkat; asesmen ulang setelah pendampingan.'},
+    pengayaan:{profil:'Peserta didik yang cepat memahami dan siap tantangan lebih.',kegiatan:[`Mengerjakan soal tantangan ${t} yang menuntut penalaran.`,'Menjadi tutor sebaya bagi teman.','Membuat contoh atau mini projek yang mengaitkan materi dengan kehidupan sehari-hari.'],asesmen:'Produk mini projek dan penjelasan lisan.'},
+    visual:{profil:'Peserta didik yang mudah belajar lewat gambar dan warna.',kegiatan:[`Membuat peta pikiran atau gambar tentang ${t}.`,'Memakai kartu bergambar, diagram, atau warna untuk mengelompokkan konsep.'],asesmen:'Menilai peta pikiran atau gambar buatan siswa.'},
+    auditori:{profil:'Peserta didik yang mudah belajar dengan mendengar dan berbicara.',kegiatan:[`Berdiskusi dan menceritakan kembali ${t} secara lisan.`,'Membuat lagu, tepuk, atau pantun pengingat materi.'],asesmen:'Menilai penjelasan lisan dan keterlibatan diskusi.'},
+    kinestetik:{profil:'Peserta didik yang mudah belajar dengan bergerak dan mencoba langsung.',kegiatan:[`Memperagakan konsep ${t} dengan benda nyata atau gerakan.`,'Permainan berpindah pos dengan tugas singkat.'],asesmen:'Menilai peragaan dan hasil percobaan.'}};
+  return d.pilih.map(k=>({kode:k,judul:DIFV[k],...G[k]}))
+}
+function dfHtml(d){
+  if(!d.data)return'';
+  return hasil('DIFERENSIASI PEMBELAJARAN')+`<p>Mata pelajaran: <b>${esc(d.mapel||'-')}</b> • Kelas ${esc(d.kelas||'-')}<br>Topik: <b>${esc(d.topik||'-')}</b></p>`+d.data.map(x=>`<p style="margin-top:10px"><b>${esc(x.judul)}</b></p>${x.profil?`<p>${esc(x.profil)}</p>`:''}<ol style="margin-left:20px">${x.kegiatan.map(k=>`<li>${esc(k)}</li>`).join('')}</ol>${x.asesmen?`<p><i>Asesmen:</i> ${esc(x.asesmen)}</p>`:''}`).join('')
+}
+function dfPage(v){
+  if(!dfEdit){
+    v.innerHTML=`<div class="wrap"><div class="hero tilt"><div><h2>RPP Diferensiasi</h2><p>Dari RPP Anda, AI menyusun kegiatan untuk siswa yang perlu pendampingan, yang cepat paham, dan untuk gaya belajar visual, auditori, atau kinestetik.</p><button class="btn a" data-act="dfNew">✨ Buat Baru</button></div></div>
+    ${db.diff.length?[...db.diff].reverse().map(r=>`<div class="card tilt item"><div class="ib">🌈</div><div class="im"><b>${esc(r.topik||'-')}</b><small>${esc(r.mapel)} • Kelas ${esc(r.kelas)} • ${r.data?r.data.length:0} varian • ${fmtD(r.updated)}</small></div><div class="ia"><button class="btn s g" data-act="dfOpen" data-id="${r.id}">Buka</button><button class="btn s r" data-act="dfDel" data-id="${r.id}" aria-label="Hapus">🗑</button></div></div>`).join(''):'<div class="card empty"><b>🌈</b>Belum ada. Tekan “Buat Baru”.</div>'}</div>`;return}
+  const d=dfEdit;
+  v.innerHTML=`<div class="wrap"><div class="card"><div class="row" style="justify-content:space-between"><h3>Diferensiasi Pembelajaran</h3><button class="btn s g" data-act="dfBack">← Kembali</button></div>
+  <label>Ambil dari RPP</label><select id="drpp"><option value="">— pilih RPP —</option>${db.rpp.map(r=>`<option value="${r.id}" ${r.id===d.rppId?'selected':''}>${esc(r.mapel)} — ${esc(r.topik)}</option>`).join('')}</select>
+  <div class="g2"><div><label>Mata Pelajaran</label><input data-df="mapel" value="${esc(d.mapel)}"></div><div><label>Kelas</label><select data-df="kelas">${KELAS.map(k=>`<option ${k==d.kelas?'selected':''}>${k}</option>`).join('')}</select></div></div>
+  <label>Topik</label><input data-df="topik" value="${esc(d.topik)}">
+  <label>Kondisi kelas (opsional)</label><input data-df="catatan" value="${esc(d.catatan)}" placeholder="mis. 5 siswa belum lancar membaca, 3 siswa cepat selesai">
+  <label>Buat untuk</label>${Object.entries(DIFV).map(([k,l])=>`<label class="row" style="margin:6px 0 0;font-weight:600"><input type="checkbox" data-dfp="${k}" style="width:auto;box-shadow:none" ${d.pilih.includes(k)?'checked':''}>${l}</label>`).join('')}
+  <div class="row" style="margin-top:14px"><button class="btn a" data-act="dfAI">✨ Susun dengan AI</button></div></div>
+  ${d.data?`<div class="card"><h3>Hasil</h3>${dfHtml(d).replace(/^<h3[^>]*>[\s\S]*?<\/h3>/,'')}<div class="row" style="margin-top:14px"><button class="btn t" data-act="dfSave">💾 Simpan</button><button class="btn" data-act="dfPrint">🖨 Cetak</button></div></div>`:''}</div>`}
+defs.diff={label:'RPP Diferensiasi',icon:'🌈',render:dfPage};
+function dfPick(id){const r=db.rpp.find(x=>x.id===id),d=dfEdit;d.rppId=id;if(r){d.mapel=r.mapel;d.kelas=r.kelas;d.topik=r.topik}dfPage(view)}
+Object.assign(ACT,{
+  dfNew:()=>{dfEdit=blankDf();go()},
+  dfOpen:d=>{dfEdit=Object.assign(blankDf(),structuredClone(db.diff.find(x=>x.id===d.id)));go()},
+  dfDel:d=>{if(confirm('Hapus data ini?')){db.diff=db.diff.filter(x=>x.id!==d.id);save();go()}},
+  dfBack:()=>{dfEdit=null;go()},
+  dfSave:()=>{const d=dfEdit;if(!d||!d.data){toast('Susun isinya dulu');return}d.updated=today();if(!d.id){d.id=uid();db.diff.push(structuredClone(d))}else db.diff=db.diff.map(x=>x.id===d.id?structuredClone(d):x);save();toast('Tersimpan ✅')},
+  dfPrint:()=>{if(dfEdit&&dfEdit.data)doPrint(dfHtml(dfEdit))},
+  dfAI:(b0,b)=>busy(b,'⏳ AI menyusun…',async()=>{
+    const d=dfEdit;if(!cl(d.topik)){toast('Pilih RPP atau isi topik dulu');return}if(!d.pilih.length){toast('Pilih minimal satu jenis');return}
+    const r=db.rpp.find(x=>x.id===d.rppId)||{},c=(k,n=400)=>cl(r[k]).slice(0,n);
+    try{const x=await tugas('diferensiasi',{mapel:d.mapel,kelas:d.kelas,fase:faseOf(d.kelas),topik:d.topik,tp:c('tp',500),awal:c('awal'),inti:[c('memahami'),c('mengaplikasi'),c('merefleksi')].join(' | ').slice(0,900),catatan:d.catatan,pilih:d.pilih},90000);
+      const v=dfNorm(x,d.pilih);if(!v.length)throw new Error('kosong');d.data=v;toast('Diferensiasi selesai ✨ — periksa lalu simpan')}
+    catch(e){d.data=dfLocal(d);toast('AI belum tersambung — memakai template umum, sesuaikan seperlunya')}
+    dfPage(view)})
+});
+
+/* ---------- 6. BAHAN AJAR & ICE BREAKER ---------- */
+const BHN={ringkasan:'Ringkasan materi bahasa anak',cerita:'Cerita pendek bermuatan materi',icebreaker:'Ice breaker / tepuk / yel-yel',permainan:'Permainan edukatif',pantun:'Pantun / lagu pengingat materi'};
+let bhEdit=null,bhSrcList=[];
+const blankBh=()=>({id:null,jenis:'ringkasan',rppId:'',mapel:'',kelas:db.guru.kelas||'3',topik:'',catatan:'',sumber:'',judul:'',isi:'',updated:''});
+const bhLocal=d=>{const t=d.topik||'belajar hari ini';return{judul:'Ice Breaker Semangat',isi:`1. Tepuk Semangat\nGuru: “Kita siap belajar ${t}!”\nSiswa: tepuk 2 kali, “Siap, siap, siap!”\nUlangi 3 kali dengan suara makin pelan lalu makin keras.\n\n2. Simon Says\nGuru memberi perintah “Simon bilang: sentuh hidung!”. Siswa hanya bergerak bila ada kata “Simon bilang”. Selipkan istilah dari ${t}.\n\n3. Hitung Cepat\nSiswa berdiri melingkar dan menyebut angka/kata berurutan; yang salah atau lupa duduk. Lanjutkan sampai tersisa satu pemenang.`}};
+function bhPage(v){
+  if(!bhEdit){
+    v.innerHTML=`<div class="wrap"><div class="hero tilt"><div><h2>Bahan Ajar & Ice Breaker</h2><p>Ringkasan materi bahasa anak, cerita, ice breaker, permainan, dan pantun/lagu untuk topik Anda.</p><button class="btn a" data-act="bhNew">✨ Buat Baru</button></div></div>
+    ${db.bahan.length?[...db.bahan].reverse().map(r=>`<div class="card tilt item"><div class="ib">🎈</div><div class="im"><b>${esc(r.judul||r.topik||BHN[r.jenis])}</b><small>${BHN[r.jenis]} • ${esc(r.mapel||'-')} • Kelas ${esc(r.kelas)} • ${fmtD(r.updated)}</small></div><div class="ia"><button class="btn s g" data-act="bhOpen" data-id="${r.id}">Buka</button><button class="btn s r" data-act="bhDel" data-id="${r.id}" aria-label="Hapus">🗑</button></div></div>`).join(''):'<div class="card empty"><b>🎈</b>Belum ada. Tekan “Buat Baru”.</div>'}</div>`;return}
+  const d=bhEdit;
+  v.innerHTML=`<div class="wrap"><div class="card"><div class="row" style="justify-content:space-between"><h3>Buat Bahan</h3><button class="btn s g" data-act="bhBack">← Kembali</button></div>
+  <label>Jenis</label><select data-bh="jenis">${Object.entries(BHN).map(([k,l])=>`<option value="${k}" ${k===d.jenis?'selected':''}>${l}</option>`).join('')}</select>
+  <label>Ambil dari RPP (opsional)</label><select id="brpp"><option value="">— tanpa RPP —</option>${db.rpp.map(r=>`<option value="${r.id}" ${r.id===d.rppId?'selected':''}>${esc(r.mapel)} — ${esc(r.topik)}</option>`).join('')}</select>
+  <div class="g2"><div><label>Mata Pelajaran</label><input data-bh="mapel" value="${esc(d.mapel)}"></div><div><label>Kelas</label><select data-bh="kelas">${KELAS.map(k=>`<option ${k==d.kelas?'selected':''}>${k}</option>`).join('')}</select></div></div>
+  <label>Topik</label><input data-bh="topik" value="${esc(d.topik)}"><label>Permintaan khusus (opsional)</label><input data-bh="catatan" value="${esc(d.catatan)}" placeholder="mis. 5 menit, tanpa alat, untuk pagi hari">
+  <label>Materi dari buku (opsional)</label><div class="row"><button type="button" class="btn s a" data-act="bhCam">📷 Foto Halaman</button><button type="button" class="btn s g" data-act="bhUp">📎 Berkas</button></div>
+  <div>${bhSrcList.map(x=>`<div class="mut" style="font-size:13px;margin-top:4px">${esc(x.name)} — ${esc(x.st)}</div>`).join('')}</div><input type="file" id="bhc" accept="image/*" capture="environment" hidden><input type="file" id="bhf" accept="image/*,.pdf,.docx,.txt" multiple hidden>
+  <textarea data-bh="sumber" style="min-height:70px;margin-top:8px" placeholder="Teks materi hasil bacaan foto muncul di sini">${esc(d.sumber)}</textarea>
+  <div class="row" style="margin-top:14px"><button class="btn a" data-act="bhAI">✨ Buat dengan AI</button></div></div>
+  ${d.isi?`<div class="card"><h3>Hasil</h3><label style="margin-top:0">Judul</label><input data-bh="judul" value="${esc(d.judul)}"><label>Isi (boleh disunting)</label><textarea data-bh="isi" style="min-height:240px">${esc(d.isi)}</textarea>
+  <div class="row" style="margin-top:14px"><button class="btn t" data-act="bhSave">💾 Simpan</button><button class="btn" data-act="bhPrint">🖨 Cetak</button><button class="btn g s" data-act="bhCopy">📋 Salin</button></div></div>`:''}</div>`;
+  v.querySelectorAll('textarea[data-bh]').forEach(grow)}
+defs.bahan={label:'Bahan Ajar & Ice Breaker',icon:'🎈',render:bhPage};
+function bhPick(id){const r=db.rpp.find(x=>x.id===id),d=bhEdit;d.rppId=id;if(r){d.mapel=r.mapel;d.kelas=r.kelas;d.topik=r.topik;if(!d.sumber&&r.sumber_teks)d.sumber=r.sumber_teks.slice(0,3000)}bhPage(view)}
+async function bhRead(files){
+  if(!bhEdit)return;bhSrcList=[];
+  for(const f of files){const it={name:f.name||'foto kamera',st:'⏳ Membaca…'};bhSrcList.push(it);bhPage(view);
+    try{const t=(await readSource(f)).trim();if(t){bhEdit.sumber=((bhEdit.sumber?bhEdit.sumber+'\n\n':'')+t).slice(0,8000);it.st=`✅ Terbaca (${t.length} huruf)`}else it.st='⚠ Tidak ada teks terbaca'}catch(e){it.st='⚠ '+String(e.message||e).slice(0,100)}
+    bhPage(view)}
+}
+Object.assign(ACT,{
+  bhNew:()=>{bhEdit=blankBh();bhSrcList=[];go()},
+  bhOpen:d=>{bhEdit=Object.assign(blankBh(),structuredClone(db.bahan.find(x=>x.id===d.id)));bhSrcList=[];go()},
+  bhDel:d=>{if(confirm('Hapus bahan ini?')){db.bahan=db.bahan.filter(x=>x.id!==d.id);save();go()}},
+  bhBack:()=>{bhEdit=null;go()},
+  bhCam:()=>$('#bhc').click(),bhUp:()=>$('#bhf').click(),
+  bhSave:()=>{const d=bhEdit;if(!d||!cl(d.isi)){toast('Buat isinya dulu');return}d.updated=today();if(!d.id){d.id=uid();db.bahan.push(structuredClone(d))}else db.bahan=db.bahan.map(x=>x.id===d.id?structuredClone(d):x);save();toast('Tersimpan ✅')},
+  bhPrint:()=>{const d=bhEdit;if(d&&cl(d.isi))doPrint(hasil(esc((d.judul||BHN[d.jenis]).toUpperCase()))+`<p class="pw" style="white-space:pre-wrap;font-size:14px;line-height:1.6">${esc(d.isi)}</p>`)},
+  bhCopy:async()=>{try{await navigator.clipboard.writeText((bhEdit.judul?bhEdit.judul+'\n\n':'')+bhEdit.isi);toast('Disalin ✅')}catch(e){toast('Gagal menyalin — salin manual dari kotak isi')}},
+  bhAI:(b0,b)=>busy(b,'⏳ AI menyusun…',async()=>{
+    const d=bhEdit;if(!cl(d.topik)){toast('Isi topik dulu');return}
+    try{const r=await tugas('bahan',{jenis:BHN[d.jenis],mapel:d.mapel,kelas:d.kelas,fase:faseOf(d.kelas),topik:d.topik,catatan:d.catatan,sumber_teks:(d.sumber||'').slice(0,4000)},80000);
+      const isi=cl(norm(r&&r.isi));if(isi.length<20)throw new Error('kosong');d.judul=cl(norm(r.judul))||d.topik;d.isi=isi;toast('Selesai ✨ — periksa lalu simpan')}
+    catch(e){if(d.jenis==='icebreaker'){const x=bhLocal(d);d.judul=x.judul;d.isi=x.isi;toast('AI belum tersambung — memakai ice breaker umum')}else toast('Butuh AI online untuk jenis ini. Coba lagi setelah tersambung.')}
+    bhPage(view)})
+});
+
+/* ---------- 7. DOKUMEN KINERJA GURU ---------- */
+const KIN={bulanan:'Laporan Bulanan Pembelajaran',refleksi:'Refleksi Pembelajaran Semester',pmm:'Bahan Refleksi PMM / PKG'};
+let kinS={jenis:'bulanan',bulan:today().slice(0,7),judul:'',isi:'',edit:false};
+function kinFacts(months){
+  const inM=d=>months.some(m=>String(d||'').startsWith(m)),J=db.jurnal.filter(j=>inM(j.tanggal));
+  const mp=[...new Set(J.map(j=>nm('mapel',j.mapel)).filter(x=>x&&x!=='-'))],tp=J.map(j=>cl(String(j.materi).split('\n')[0])).filter(Boolean).slice(0,10);
+  const A=months.map(absMonth),eff=A.reduce((a,x)=>a+x.eff,0),rows=sortSiswa().map(s=>{let h=0;A.forEach(x=>{const r=x.rows.find(y=>y.s.id===s.id);if(r)h+=r.c.H});return eff?h/eff*100:null}).filter(x=>x!==null);
+  const N=db.nilai.filter(n=>inM(n.tanggal)&&n.nilai!==''&&n.nilai!=null),k=kktp();
+  const cat=Object.values(db.karakter).reduce((a,x)=>a+((x.cat||[]).filter(c=>inM(c.tgl)).length),0);
+  return{periode:months.length===1?monthLabel(months[0]):`${monthLabel(months[0])} – ${monthLabel(months[months.length-1])}`,pertemuan:J.length,mapel:mp,topik:tp,hariEfektif:eff,rataHadir:rows.length?Math.round(rows.reduce((a,b)=>a+b,0)/rows.length):null,
+    jmlNilai:N.length,rataNilai:N.length?Math.round(N.reduce((a,n)=>a+ +n.nilai,0)/N.length*10)/10:null,tuntas:N.length?Math.round(N.filter(n=>+n.nilai>=k).length/N.length*100):null,kktp:k,
+    kegiatan:db.kalender.filter(e=>months.some(m=>e.tanggal.slice(0,7)<=m&&evEnd(e).slice(0,7)>=m)).map(e=>e.judul).slice(0,10),
+    rpp:db.rpp.filter(r=>inM(r.updated)).length,soal:db.soal.filter(r=>inM(r.updated)).length,instrumen:db.instrumen.filter(r=>inM(r.updated)).length,catatanKarakter:cat,siswa:db.siswa.length}
+}
+function kinLocal(jenis,f){
+  const g=db.guru,L=a=>a.length?a.join('; '):'-',h=`${f.periode}`;
+  const fakta=`Pada periode ${h}, pembelajaran di kelas ${g.kelas||'-'} terlaksana dalam ${f.pertemuan} pertemuan tercatat pada jurnal${f.mapel.length?' (mata pelajaran: '+f.mapel.join(', ')+')':''}. Materi yang dibahas: ${L(f.topik)}.`;
+  const hadir=f.rataHadir!==null?`Rata-rata kehadiran peserta didik ${f.rataHadir}% dari ${f.hariEfektif} hari efektif tercatat.`:'Data absensi pada periode ini belum tercatat.';
+  const nilai=f.rataNilai!==null?`Dari ${f.jmlNilai} nilai yang tercatat, rata-rata kelas ${f.rataNilai} dengan ketuntasan ${f.tuntas}% (KKTP ${f.kktp}).`:'Data nilai pada periode ini belum tercatat.';
+  const perangkat=`Perangkat yang disusun/diperbarui: ${f.rpp} RPP, ${f.soal} soal/LKPD, ${f.instrumen} instrumen asesmen. Catatan perkembangan karakter yang dibuat: ${f.catatanKarakter}.`;
+  if(jenis==='bulanan')return{judul:`LAPORAN BULANAN PEMBELAJARAN — ${h.toUpperCase()}`,isi:`A. Pendahuluan\nLaporan ini disusun untuk memberi gambaran pelaksanaan pembelajaran kelas ${g.kelas||'-'} (${f.siswa} peserta didik) pada periode ${h}.\n\nB. Pelaksanaan Pembelajaran\n${fakta}\n${perangkat}\n\nC. Kehadiran Peserta Didik\n${hadir}\n\nD. Hasil Belajar\n${nilai}\n\nE. Kegiatan Sekolah\n${L(f.kegiatan)}\n\nF. Kendala dan Tindak Lanjut\n(Tuliskan kendala yang dihadapi dan rencana perbaikan.)`};
+  return{judul:`${(KIN[jenis]||'').toUpperCase()} — ${h.toUpperCase()}`,isi:`A. Gambaran Pembelajaran\n${fakta}\n${hadir}\n${nilai}\n${perangkat}\n\nB. Apa yang sudah berjalan baik?\n(Tuliskan praktik yang efektif dan buktinya.)\n\nC. Tantangan yang dihadapi\n(Tuliskan kendala pada pembelajaran atau peserta didik.)\n\nD. Perbaikan yang akan dilakukan\n(Tuliskan langkah konkret untuk semester berikutnya.)\n\nE. Bukti Pendukung\nJurnal mengajar, RPP, daftar nilai, rekap absensi, dan catatan perkembangan karakter pada aplikasi KelasKu.`}
+}
+defs.kinerja={label:'Dokumen Kinerja',icon:'📑',render(v){
+  const sem=kinS.jenis!=='bulanan';
+  v.innerHTML=`<div class="wrap"><div class="card"><h3>📑 Dokumen Kinerja Guru</h3><p class="mut" style="font-size:13px">Disusun dari data yang sudah Anda catat di aplikasi (jurnal, absensi, nilai, kegiatan). AI hanya merangkai fakta tersebut menjadi laporan; bagian kendala dan tindak lanjut sebaiknya Anda lengkapi sendiri.</p>
+  <label>Jenis dokumen</label><select data-kn="jenis">${Object.entries(KIN).map(([k,l])=>`<option value="${k}" ${k===kinS.jenis?'selected':''}>${l}</option>`).join('')}</select>
+  ${sem?`<small class="mut" style="display:block;margin-top:6px">Periode: seluruh semester ${esc(db.guru.semester)} TA ${esc(db.guru.tahun)}.</small>`:`<label>Bulan</label><input type="month" data-kn="bulan" value="${esc(kinS.bulan)}">`}
+  <div class="row" style="margin-top:14px"><button class="btn a" data-act="kinAI">✨ Susun dengan AI</button><button class="btn s" data-act="kinLocal">📝 Susun dari data (tanpa AI)</button></div></div>
+  ${kinS.isi?`<div class="card"><h3>Hasil</h3><label style="margin-top:0">Judul</label><input data-kn="judul" value="${esc(kinS.judul)}"><label>Isi (boleh disunting)</label><textarea data-kn="isi" style="min-height:300px">${esc(kinS.isi)}</textarea><div class="row" style="margin-top:14px"><button class="btn" data-act="kinPrint">🖨 Cetak</button><button class="btn g s" data-act="kinCopy">📋 Salin</button></div></div>`:''}</div>`;
+  v.querySelectorAll('textarea[data-kn]').forEach(grow)}};
+const kinMonths=()=>kinS.jenis==='bulanan'?[kinS.bulan||today().slice(0,7)]:semMonths();
+Object.assign(ACT,{
+  kinLocal:()=>{const f=kinFacts(kinMonths()),x=kinLocal(kinS.jenis,f);kinS.judul=x.judul;kinS.isi=x.isi;toast('Disusun dari data Anda ✅ — lengkapi bagian bertanda kurung');go()},
+  kinAI:(d,b)=>busy(b,'⏳ AI menyusun…',async()=>{
+    const f=kinFacts(kinMonths());let ok=false;
+    try{const r=await tugas('kinerja',{jenis:KIN[kinS.jenis],fakta:f,guru:{nama:db.guru.nama,sekolah:db.guru.sekolah,kelas:db.guru.kelas,tahun:db.guru.tahun,semester:db.guru.semester}},90000);
+      const t=cl(norm(r&&r.isi));if(t.length<40)throw new Error('kosong');kinS.judul=cl(norm(r.judul))||KIN[kinS.jenis];kinS.isi=t;ok=true}catch(e){}
+    if(!ok){const x=kinLocal(kinS.jenis,f);kinS.judul=x.judul;kinS.isi=x.isi}
+    toast(ok?'Selesai ✨ — periksa angka dan lengkapi kendala/tindak lanjut':'AI belum tersambung — disusun dari data tanpa AI');go()}),
+  kinPrint:()=>{if(kinS.isi)doPrint(hasil(esc((kinS.judul||'').toUpperCase()))+`<p class="pw" style="white-space:pre-wrap;font-size:13px;line-height:1.6">${esc(kinS.isi)}</p>`)},
+  kinCopy:async()=>{try{await navigator.clipboard.writeText(kinS.judul+'\n\n'+kinS.isi);toast('Disalin ✅')}catch(e){toast('Gagal menyalin — salin manual')}}
+});
+
+/* ---------- 3. PERIKSA LEMBAR JAWABAN DARI FOTO ---------- */
+let kxS={soalId:'',manual:'',mapel:'',jenis:'Harian',tgl:today(),tp:'',sheets:[]};
+function parseKunci(str){
+  const pg=[],is=[];let sec='';
+  String(str||'').split(/\r?\n/).forEach(l=>{l=l.trim();if(!l)return;
+    if(/^A\.\s*PILIHAN/i.test(l)){sec='pg';return}if(/^B\.\s*ISIAN/i.test(l)){sec='is';return}if(/^C\.\s*URAIAN/i.test(l)){sec='ur';return}
+    const m=l.match(/^(\d+)\.\s*(.*)$/);if(!m)return;if(sec==='pg')pg[+m[1]-1]=m[2].trim().toUpperCase().slice(0,1);else if(sec==='is')is[+m[1]-1]=m[2].trim()});
+  return{pg:pg.map(x=>x||''),isian:is.map(x=>x||'')}
+}
+function kxKey(){
+  const s=db.soal.find(x=>x.id===kxS.soalId);
+  if(s)return parseKunci(s.kunci);
+  const L=(String(kxS.manual).toUpperCase().match(/[A-D]/g)||[]);return{pg:L,isian:[]}
+}
+function kxTokens(str,nPg){
+  const t=String(str||'').trim();if(!t)return[];
+  const p=t.split(/\s*[,;\n]\s*/).filter(x=>x!=='');
+  if(p.length===1&&nPg>1&&/^[A-Da-d\s]+$/.test(t))return t.toUpperCase().match(/[A-D]/g)||[];
+  return p
+}
+function kxScore(sh,key){
+  const n=key.pg.length,tk=kxTokens(sh.ans,n),total=key.pg.length+key.isian.length;let b=0;
+  key.pg.forEach((k,i)=>{if(k&&String(tk[i]||'').trim().toUpperCase().charAt(0)===k)b++});
+  key.isian.forEach((k,i)=>{const ra=String(tk[n+i]||'').trim().replace(',','.'),rc=String(k||'').trim().replace(',','.'),a=NORMN(ra),c=NORMN(rc);if(c&&a&&(a===c||(ra!==''&&rc!==''&&isFinite(+ra)&&isFinite(+rc)&&+ra===+rc)))b++});
+  return{b,total,nilai:total?Math.round(b/total*100):null}
+}
+function kxLocal(text,key){
+  const pg={},m=[...String(text).matchAll(/(?:^|[\s,;])(\d{1,2})\s*[.):\-]?\s*([A-Da-d])(?=[\s,;.)]|$)/g)];m.forEach(x=>{if(!pg[+x[1]])pg[+x[1]]=x[2].toUpperCase()});
+  const nm_=(String(text).match(/nama\s*[:.]?\s*([^\n]{2,40})/i)||[])[1]||'';
+  return{name:cl(nm_).replace(/\s*(kelas|no|absen).*$/i,''),pg:key.pg.map((_,i)=>pg[i+1]||''),isian:key.isian.map(()=>'')}
+}
+defs.koreksi={label:'Periksa Jawaban',icon:'✅',render(v){
+  const key=kxKey(),S=sortSiswa(),total=key.pg.length+key.isian.length;
+  if(!kxS.mapel&&db.mapel.length)kxS.mapel=db.mapel[0].id;
+  v.innerHTML=`<div class="wrap"><div class="card"><h3>✅ Periksa Lembar Jawaban dari Foto</h3><p class="mut" style="font-size:13px">Foto lembar jawaban siswa (satu foto per siswa). AI membaca nama dan jawaban, aplikasi mencocokkan dengan kunci, lalu Anda periksa hasilnya sebelum nilai disimpan. Berlaku untuk pilihan ganda dan isian singkat; uraian tetap Anda nilai sendiri.</p>
+  <label>Kunci jawaban dari soal tersimpan</label><select data-kx="soalId"><option value="">— ketik kunci sendiri —</option>${db.soal.filter(s=>parseKunci(s.kunci).pg.length+parseKunci(s.kunci).isian.length).map(s=>`<option value="${s.id}" ${s.id===kxS.soalId?'selected':''}>${esc(s.mapel)} — ${esc(s.topik)}</option>`).join('')}</select>
+  ${kxS.soalId?'':`<label>Kunci pilihan ganda (huruf berurutan)</label><input data-kx="manual" value="${esc(kxS.manual)}" placeholder="mis. ABCDABCDAB">`}
+  <small class="mut" style="display:block;margin-top:6px">Terbaca ${key.pg.length} pilihan ganda${key.isian.length?' dan '+key.isian.length+' isian':''}.</small>
+  <div class="g2"><div><label>Mata Pelajaran</label><select data-kx="mapel">${db.mapel.map(m=>`<option value="${m.id}" ${m.id===kxS.mapel?'selected':''}>${esc(m.nama)}</option>`).join('')}</select></div><div><label>Jenis nilai</label><select data-kx="jenis">${['Harian','Tugas','Proyek','UTS','UAS'].map(j=>`<option ${j===kxS.jenis?'selected':''}>${j}</option>`).join('')}</select></div></div>
+  <div class="g2"><div><label>Tanggal</label><input type="date" data-kx="tgl" value="${esc(kxS.tgl)}"></div><div><label>Materi / TP (opsional)</label><input data-kx="tp" value="${esc(kxS.tp)}"></div></div>
+  <div class="row" style="margin-top:14px"><button class="btn a" data-act="kxCam" ${total?'':'disabled'}>📷 Foto Lembar</button><button class="btn s" data-act="kxUp" ${total?'':'disabled'}>📎 Pilih Beberapa Foto</button><button class="btn g s" data-act="kxAdd" ${total?'':'disabled'}>＋ Ketik Manual</button></div>
+  <input type="file" id="kxc" accept="image/*" capture="environment" hidden><input type="file" id="kxf" accept="image/*" multiple hidden></div>
+  ${kxS.sheets.length?`<div class="card"><h3>${kxS.sheets.length} lembar</h3>${kxS.sheets.map((sh,i)=>{const sc=kxScore(sh,key);return `<div class="note" style="display:block"><div class="row" style="justify-content:space-between"><b>Lembar ${i+1}</b><button class="btn s r" data-act="kxDel" data-i="${i}" aria-label="Hapus">✕</button></div>
+  <select data-kxs="${i}" data-f="sid"><option value="">— pilih siswa${sh.name?' (terbaca: '+esc(sh.name)+')':''} —</option>${S.map(s=>`<option value="${s.id}" ${s.id===sh.sid?'selected':''}>${esc(s.nama)}</option>`).join('')}</select>
+  <input data-kxs="${i}" data-f="ans" value="${esc(sh.ans)}" style="margin-top:6px" placeholder="Jawaban dipisah koma: A, B, C, …">
+  <small class="mut">${kxSmall(sc)}</small></div>`}).join('')}
+  <div class="row" style="margin-top:14px"><button class="btn t" data-act="kxSave">💾 Simpan Nilai</button><button class="btn g" data-act="kxClear">Kosongkan</button></div></div>`:''}</div>`}};
+const kxSmall=sc=>`Benar ${sc.b} dari ${sc.total} • Nilai <b>${sc.nilai==null?'-':sc.nilai}</b>`;
+async function kxFiles(files){
+  const key=kxKey();if(!key.pg.length&&!key.isian.length){toast('Isi kunci jawaban dulu');return}
+  let i=0;
+  for(const f of files){
+    toast(`⏳ Membaca lembar ${++i}/${files.length}…`);
+    let sh={name:'',sid:'',ans:''};
+    try{const text=await readSource(f,'jawaban');
+      try{const r=await tugas('jawaban',{teks:text.slice(0,3000),nPg:key.pg.length,nIsian:key.isian.length},60000);
+        sh={name:cl(norm(r&&r.nama)),pg:asArr(r&&r.pg).map(x=>cl(norm(x))),isian:asArr(r&&r.isian).map(x=>cl(norm(x)))}}
+      catch(e){sh=kxLocal(text,key)}
+      const all=[...key.pg.map((_,j)=>(sh.pg||[])[j]||''),...key.isian.map((_,j)=>(sh.isian||[])[j]||'')];
+      const s=siswaRes(sh.name);sh={name:sh.name,sid:s?s.id:'',ans:all.join(', ')}}
+    catch(e){toast(String(e.message||e).slice(0,100))}
+    kxS.sheets.push(sh)}
+  toast('Selesai — periksa nama dan jawaban tiap lembar');go()
+}
+Object.assign(ACT,{
+  kxCam:()=>$('#kxc').click(),kxUp:()=>$('#kxf').click(),
+  kxAdd:()=>{kxS.sheets.push({name:'',sid:'',ans:''});go()},
+  kxDel:d=>{kxS.sheets.splice(+d.i,1);go()},
+  kxClear:()=>{kxS.sheets=[];go()},
+  kxSave:()=>{
+    const key=kxKey(),m=db.mapel.find(x=>x.id===kxS.mapel);if(!m){toast('Pilih mata pelajaran dulu');return}
+    const L=kxS.sheets.map(sh=>({sh,sc:kxScore(sh,key)})).filter(x=>x.sh.sid&&x.sc.nilai!==null);
+    if(!L.length){toast('Pilih siswa pada tiap lembar dulu');return}
+    let a=0,u=0;L.forEach(({sh,sc})=>{const ex=db.nilai.find(n=>n.siswa===sh.sid&&n.mapel===kxS.mapel&&n.jenis===kxS.jenis&&n.tanggal===kxS.tgl&&(n.tp||'')===(kxS.tp||''));
+      if(ex){ex.nilai=sc.nilai;u++}else{db.nilai.push({id:uid(),siswa:sh.sid,mapel:kxS.mapel,jenis:kxS.jenis,tp:kxS.tp||'',nilai:sc.nilai,tanggal:kxS.tgl});a++}});
+    const skip=kxS.sheets.length-L.length;save();kxS.sheets=[];toast(`${a} nilai ditambahkan, ${u} diperbarui${skip?' ('+skip+' lembar dilewati: siswa belum dipilih)':''} ✅`);go()}
+});
+
+/* ---------- pendengar & menu ---------- */
+view.addEventListener('input',e=>{const t=e.target;
+  if(t.dataset.df&&dfEdit)dfEdit[t.dataset.df]=t.value;
+  if(t.dataset.bh&&bhEdit){bhEdit[t.dataset.bh]=t.value;if(t.tagName==='TEXTAREA')grow(t)}
+  if(t.dataset.kn){kinS[t.dataset.kn]=t.value;if(t.tagName==='TEXTAREA')grow(t)}
+  if(t.dataset.kx==='manual')kxS.manual=t.value;
+  if(t.dataset.kx==='tp')kxS.tp=t.value;
+  if(t.dataset.kxs!==undefined&&t.dataset.f==='ans'&&kxS.sheets[+t.dataset.kxs]){kxS.sheets[+t.dataset.kxs].ans=t.value;const sm=t.nextElementSibling;if(sm)sm.innerHTML=kxSmall(kxScore(kxS.sheets[+t.dataset.kxs],kxKey()))}});
+view.addEventListener('change',e=>{const t=e.target;
+  if(t.dataset.dfp&&dfEdit){const s=new Set(dfEdit.pilih);t.checked?s.add(t.dataset.dfp):s.delete(t.dataset.dfp);dfEdit.pilih=Object.keys(DIFV).filter(k=>s.has(k))}
+  if(t.id==='drpp'&&dfEdit)dfPick(t.value);
+  if(t.id==='brpp'&&bhEdit)bhPick(t.value);
+  if(t.id==='bhc'||t.id==='bhf'){const fs=[...t.files];t.value='';bhRead(fs)}
+  if(t.dataset.bh==='jenis'&&bhEdit)bhEdit.jenis=t.value;
+  if(t.dataset.kn==='jenis'){kinS.jenis=t.value;kinS.isi='';kinS.judul='';go()}
+  if(t.dataset.kn==='bulan'){kinS.bulan=t.value||kinS.bulan}
+  if(t.dataset.kx){kxS[t.dataset.kx]=t.value;if(t.dataset.kx!=='tp')go()}
+  if(t.dataset.kxs!==undefined&&t.dataset.f==='sid'&&kxS.sheets[+t.dataset.kxs]){kxS.sheets[+t.dataset.kxs].sid=t.value}
+  if(t.id==='kxc'||t.id==='kxf'){const fs=[...t.files];t.value='';kxFiles(fs)}});
+['dini','diff','bahan','kinerja','koreksi'].forEach(k=>PAGES[k]=defs[k]);
+{const tmp={...PAGES};Object.keys(PAGES).forEach(k=>delete PAGES[k]);['dashboard','asisten','dini','guru','impor','siswa','mapel','kalender','rpp','diff','perangkat','soal','bahan','instrumen','asesmen','jadwal','absensi','absrekap','nilai','nilaicepat','koreksi','leger','tl','catcepat','karakter','rapor','kartu','jurnal','surat','kinerja','rekap','excel','wali','tahun','setting'].forEach(k=>{if(tmp[k])PAGES[k]=tmp[k]})}
+
+
+/* ================= PERANGKAT STEM: integrasi Sains, Teknologi, Teknik, Matematika (projek P5/kokurikuler & mata pelajaran) ================= */
+const P5T=['Gaya Hidup Berkelanjutan','Kearifan Lokal','Bhinneka Tunggal Ika','Bangunlah Jiwa dan Raganya','Suara Demokrasi','Berekayasa dan Berteknologi untuk Membangun NKRI','Kewirausahaan'];
+const STK={s:'Sains',t:'Teknologi',e:'Teknik / Rekayasa',m:'Matematika'};
+let stEdit=null,stSrcList=[];
+const blankSt=()=>({id:null,mode:'p5',rppId:'',mapel:'',kelas:db.guru.kelas||'3',tema:'',topik:'',pertemuan:4,jp:'2',catatan:'',sumber:'',data:null,updated:''});
+const stList=(x,n=8)=>asArr(x).map(a=>cl(norm(a))).filter(Boolean).slice(0,n);
+function stNorm(r1,r2){
+  const a=x=>cl(norm(x)),I=r1&&r1.integrasi||{},ig=k=>({tp:a(I[k]&&I[k].tp),kegiatan:a(I[k]&&I[k].kegiatan)});
+  const d={judul:a(r1&&r1.judul),deskripsi:a(r1&&r1.deskripsi),pertanyaan:a(r1&&(r1.pertanyaan_pemandu||r1.pertanyaan)),mapel_terkait:stList(r1&&r1.mapel_terkait,6),
+    dpl:asArr(r1&&r1.dpl).map(Number).filter(n=>n>=1&&n<=8).slice(0,4),tujuan:stList(r1&&r1.tujuan,6),integrasi:{s:ig('s'),t:ig('t'),e:ig('e'),m:ig('m')},
+    alur:asArr(r1&&r1.alur).map(x=>({pertemuan:a(x&&x.pertemuan),tahap:a(x&&x.tahap),kegiatan:a(x&&x.kegiatan),fokus:a(x&&x.fokus)})).filter(x=>x.kegiatan).slice(0,8),
+    alat_bahan:stList(r1&&r1.alat_bahan,12),produk:a(r1&&r1.produk),keselamatan:stList(r1&&r1.keselamatan,6),
+    lkpd:{petunjuk:'',langkah:[],pertanyaan:[]},rubrik:[],asesmen:{formatif:'',sumatif:''},refleksi:[]};
+  if(r2)Object.assign(d,stNorm2(r2));
+  return d
+}
+function stNorm2(r){
+  const a=x=>cl(norm(x)),L=r&&r.lkpd||{};
+  return{lkpd:{petunjuk:a(L.petunjuk),langkah:stList(L.langkah,8),pertanyaan:stList(L.pertanyaan,8)},
+    rubrik:asArr(r&&r.rubrik).map(k=>({kriteria:a(k&&k.kriteria),baru:a(k&&k.baru),berkembang:a(k&&k.berkembang),cakap:a(k&&k.cakap),mahir:a(k&&k.mahir)})).filter(k=>k.kriteria).slice(0,6),
+    asesmen:{formatif:a(r&&r.asesmen&&r.asesmen.formatif),sumatif:a(r&&r.asesmen&&r.asesmen.sumatif)},refleksi:stList(r&&r.refleksi,5)}
+}
+function stLocal(d){
+  const t=d.topik||d.tema||'topik projek',n=Math.max(1,Math.min(6,+d.pertemuan||4));
+  const ST=[['Tanya','Mengamati masalah/fenomena nyata dan merumuskan pertanyaan: “Bagaimana kita dapat …?”','S, M'],['Imajinasi & Rencana','Menggali ide solusi, menggambar rancangan, memilih bahan, dan membagi tugas kelompok.','E, T'],['Buat','Membuat prototipe sesuai rancangan dengan bahan sederhana; mencatat ukuran bahan.','E, M'],['Uji & Perbaiki','Menguji prototipe, mengukur dan mencatat hasil, membuat grafik/tabel sederhana, lalu memperbaiki rancangan.','S, M, E'],['Bagikan & Refleksi','Mempresentasikan produk dan data hasil uji, menerima masukan, dan merefleksikan proses.','T, M']];
+  const alur=[];for(let i=0;i<n;i++){const s=ST[Math.min(ST.length-1,Math.floor(i*ST.length/n))];alur.push({pertemuan:`Pertemuan ${i+1}`,tahap:s[0],kegiatan:s[1],fokus:s[2]})}
+  return{judul:`Projek STEM: ${t}`,deskripsi:`Peserta didik menyelesaikan masalah nyata terkait ${t} melalui proses rekayasa: mengamati, merancang, membuat, menguji, dan memperbaiki produk sederhana.`,pertanyaan:`Bagaimana kita dapat membuat solusi sederhana terkait ${t}?`,
+    mapel_terkait:[d.mapel||'IPAS','Matematika','Bahasa Indonesia','Seni Rupa'].filter((x,i,a)=>x&&a.indexOf(x)===i),dpl:[3,4,5],
+    tujuan:[`Peserta didik mampu menjelaskan konsep sains yang berkaitan dengan ${t}.`,'Peserta didik mampu merancang dan membuat prototipe sederhana secara berkelompok.','Peserta didik mampu mengukur, mencatat, dan membandingkan data hasil uji.','Peserta didik mampu mempresentasikan hasil dan merefleksikan proses.'],
+    integrasi:{s:{tp:`Memahami konsep/fenomena yang melatarbelakangi ${t}.`,kegiatan:'Mengamati, bertanya, dan melakukan uji coba sederhana.'},t:{tp:'Memanfaatkan teknologi sederhana untuk mencari informasi dan mendokumentasikan.',kegiatan:'Mencari informasi, memotret/merekam proses, atau memakai aplikasi pengukur/kalkulator.'},e:{tp:'Menerapkan proses desain: merancang, membuat, menguji, memperbaiki.',kegiatan:'Menggambar rancangan, membuat prototipe, menguji, dan memperbaikinya.'},m:{tp:'Menggunakan pengukuran, bilangan, dan data dalam proses rekayasa.',kegiatan:'Mengukur panjang/waktu/massa, menghitung, membuat tabel dan diagram sederhana.'}},
+    alur,alat_bahan:['Bahan bekas (botol, kardus, kertas)','Alat ukur (penggaris, gelas ukur, stopwatch)','Alat tulis dan kertas rancangan','Lem, gunting (dengan pengawasan guru)','Perangkat untuk dokumentasi (opsional)'],
+    produk:`Prototipe/produk sederhana terkait ${t} beserta tabel data hasil uji dan presentasi singkat.`,keselamatan:['Alat tajam dan lem panas hanya digunakan dengan pengawasan guru.','Gunakan bahan bersih dan aman; cuci tangan setelah kegiatan.','Jaga area kerja tetap rapi.'],
+    lkpd:{petunjuk:'Kerjakan bersama kelompok. Tulis hasil pengamatan dan pengukuranmu dengan jujur.',langkah:['Tuliskan masalah yang akan kamu selesaikan.','Gambar rancangan produkmu dan tulis bahan yang digunakan.','Buat produk sesuai rancangan.','Uji produkmu dan catat hasilnya pada tabel.','Perbaiki produkmu, lalu uji sekali lagi.'],pertanyaan:['Apa masalah yang ingin kamu selesaikan?','Apa yang berhasil pada produkmu? Apa yang belum?','Apa yang kamu ubah setelah pengujian pertama dan mengapa?','Apa yang kamu pelajari dari projek ini?']},
+    rubrik:[{kriteria:'Sains (pemahaman konsep)',baru:'Belum dapat menjelaskan konsep.',berkembang:'Menjelaskan sebagian konsep dengan bantuan.',cakap:'Menjelaskan konsep dengan benar.',mahir:'Menjelaskan konsep dan mengaitkannya dengan contoh lain.'},
+      {kriteria:'Teknologi (pemanfaatan alat/informasi)',baru:'Perlu dibimbing memakai alat/sumber.',berkembang:'Memakai alat/sumber dengan sedikit bantuan.',cakap:'Memakai alat/sumber dengan tepat.',mahir:'Memakai alat/sumber dengan tepat dan kreatif.'},
+      {kriteria:'Teknik (rancangan & prototipe)',baru:'Rancangan/prototipe belum utuh.',berkembang:'Prototipe jadi tetapi belum diuji/diperbaiki.',cakap:'Prototipe sesuai rancangan dan diperbaiki.',mahir:'Prototipe efektif, diperbaiki berdasarkan data.'},
+      {kriteria:'Matematika (pengukuran & data)',baru:'Pengukuran/pencatatan belum tepat.',berkembang:'Mengukur dan mencatat sebagian dengan benar.',cakap:'Mengukur, mencatat, dan membandingkan data dengan benar.',mahir:'Menyajikan dan menafsirkan data dengan tepat.'},
+      {kriteria:'Kolaborasi & komunikasi',baru:'Belum terlibat dalam kelompok.',berkembang:'Terlibat bila diarahkan.',cakap:'Aktif bekerja sama dan mempresentasikan hasil.',mahir:'Memimpin kerja sama dan presentasi dengan percaya diri.'}],
+    asesmen:{formatif:'Pengamatan proses, catatan tabel data, dan tanya jawab tiap pertemuan.',sumatif:'Penilaian produk, presentasi, dan LKPD dengan rubrik.'},refleksi:['Bagian mana yang paling menantang bagi peserta didik?','Apakah alat dan bahan sudah memadai?','Apa yang akan diperbaiki pada pertemuan berikutnya?']}
+}
+function stHtml(d,part){
+  const x=d.data;if(!x)return'';
+  const info=`<p>${d.mode==='p5'?'Projek P5 / Kokurikuler':'Mata pelajaran: <b>'+esc(d.mapel||'-')+'</b>'}${d.tema?' • Tema: <b>'+esc(d.tema)+'</b>':''} • Kelas ${esc(d.kelas)} (Fase ${esc(faseOf(d.kelas))}) • ${esc(d.pertemuan)} pertemuan × ${esc(d.jp)} JP</p>`;
+  const ol=a=>a.length?`<ol style="margin-left:20px">${a.map(i=>`<li>${esc(i)}</li>`).join('')}</ol>`:'<p>-</p>';
+  const rub=()=>hasil('RUBRIK PENILAIAN PROJEK STEM')+`<p>Projek: <b>${esc(x.judul)}</b> • Kelas ${esc(d.kelas)}</p>`+dtab(['Kriteria','Baru Memulai','Berkembang','Cakap','Mahir'],x.rubrik.map(k=>[k.kriteria,k.baru,k.berkembang,k.cakap,k.mahir]));
+  const lk=()=>hasil('LKPD PROJEK STEM')+`<p><b>${esc(x.judul)}</b></p><p>Nama Kelompok: ........................................ Anggota: ....................................</p>`+(x.lkpd.petunjuk?`<p><b>Petunjuk</b><br>${esc(x.lkpd.petunjuk)}</p>`:'')+`<p><b>Pertanyaan pemandu</b><br>${esc(x.pertanyaan)}</p><p><b>Langkah kerja</b></p>${ol(x.lkpd.langkah)}`
+    +`<p style="margin-top:8px"><b>Tabel Data Pengujian</b></p>`+dtab(['Percobaan','Yang diukur','Hasil (angka + satuan)','Catatan / perbaikan'],[['1','','',''],['2','','',''],['3','','','']])+`<p style="margin-top:8px"><b>Gambar rancangan</b></p><div style="border:1px solid #000;height:120px"></div><p style="margin-top:8px"><b>Pertanyaan refleksi</b></p>${ol(x.lkpd.pertanyaan)}`;
+  const ran=()=>hasil('PERANGKAT PEMBELAJARAN STEM')+info+`<p><b>${esc(x.judul)}</b></p>${x.pertanyaan?`<p><i>Pertanyaan pemandu:</i> ${esc(x.pertanyaan)}</p>`:''}${x.deskripsi?`<p>${esc(x.deskripsi)}</p>`:''}`
+    +(x.dpl.length?`<p><b>Dimensi Profil Lulusan:</b> ${x.dpl.map(n=>'DPL '+n+' '+esc(DPL[n-1]||'')).join('; ')}</p>`:'')+(x.mapel_terkait.length?`<p><b>Mata pelajaran terkait:</b> ${x.mapel_terkait.map(esc).join(', ')}</p>`:'')
+    +`<p><b>Tujuan Pembelajaran</b></p>${ol(x.tujuan)}<p><b>Integrasi STEM</b></p>`+dtab(['Komponen','Tujuan','Kegiatan'],Object.keys(STK).map(k=>[STK[k],x.integrasi[k].tp,x.integrasi[k].kegiatan]))
+    +`<p style="margin-top:8px"><b>Alur Kegiatan (Proses Desain Rekayasa)</b></p>`+dtab(['Pertemuan','Tahap','Kegiatan','Fokus STEM'],x.alur.map(a=>[a.pertemuan,a.tahap,a.kegiatan,a.fokus]))
+    +`<p style="margin-top:8px"><b>Alat dan Bahan</b></p>${ol(x.alat_bahan)}<p><b>Produk Akhir:</b> ${esc(x.produk)}</p>`+(x.keselamatan.length?`<p><b>Keselamatan Kerja</b></p>${ol(x.keselamatan)}`:'')
+    +`<p><b>Asesmen</b><br>Formatif: ${esc(x.asesmen.formatif||'-')}<br>Sumatif: ${esc(x.asesmen.sumatif||'-')}</p>`+(x.refleksi.length?`<p><b>Refleksi Guru</b></p>${ol(x.refleksi)}`:'');
+  return part==='rubrik'?rub():part==='lkpd'?lk():part==='semua'?ran()+'<div class="pb"></div>'+lk()+'<div class="pb"></div>'+rub():ran()
+}
+function stPage(v){
+  if(!stEdit){
+    v.innerHTML=`<div class="wrap"><div class="hero tilt"><div><h2>Perangkat STEM</h2><p>Integrasi Sains, Teknologi, Teknik, dan Matematika ke dalam projek P5/kokurikuler atau mata pelajaran: rancangan, LKPD, dan rubrik siap cetak.</p><button class="btn a" data-act="stNew">✨ Buat Baru</button></div></div>
+    ${db.stem.length?[...db.stem].reverse().map(r=>`<div class="card tilt item"><div class="ib">🔬</div><div class="im"><b>${esc((r.data&&r.data.judul)||r.topik||r.tema||'Perangkat STEM')}</b><small>${r.mode==='p5'?'Projek P5':esc(r.mapel||'Mapel')} • Kelas ${esc(r.kelas)} • ${esc(r.pertemuan)} pertemuan • ${fmtD(r.updated)}</small></div><div class="ia"><button class="btn s g" data-act="stOpen" data-id="${r.id}">Buka</button><button class="btn s r" data-act="stDel" data-id="${r.id}" aria-label="Hapus">🗑</button></div></div>`).join(''):'<div class="card empty"><b>🔬</b>Belum ada. Tekan “Buat Baru”.</div>'}</div>`;return}
+  const d=stEdit;
+  v.innerHTML=`<div class="wrap"><div class="card"><div class="row" style="justify-content:space-between"><h3>Rancang Pembelajaran STEM</h3><button class="btn s g" data-act="stBack">← Kembali</button></div>
+  <label>Dipakai untuk</label><select data-st="mode"><option value="p5" ${d.mode==='p5'?'selected':''}>Projek P5 / Kokurikuler</option><option value="mapel" ${d.mode==='mapel'?'selected':''}>Mata pelajaran (IPAS, Matematika, dll.)</option></select>
+  <label>Ambil dari RPP (opsional)</label><select id="srpp"><option value="">— tanpa RPP —</option>${db.rpp.map(r=>`<option value="${r.id}" ${r.id===d.rppId?'selected':''}>${esc(r.mapel)} — ${esc(r.topik)}</option>`).join('')}</select>
+  ${d.mode==='p5'?`<label>Tema projek</label><select data-st="tema"><option value="">— pilih tema —</option>${P5T.map(t=>`<option ${t===d.tema?'selected':''}>${t}</option>`).join('')}</select>`:`<label>Mata Pelajaran</label><input data-st="mapel" value="${esc(d.mapel)}" placeholder="mis. IPAS">`}
+  <div class="g2"><div><label>Kelas</label><select data-st="kelas">${KELAS.map(k=>`<option ${k==d.kelas?'selected':''}>${k}</option>`).join('')}</select></div><div><label>Pertemuan × JP</label><div class="row" style="flex-wrap:nowrap"><input type="number" min="1" max="6" data-st="pertemuan" value="${esc(d.pertemuan)}"><input type="number" min="1" max="6" data-st="jp" value="${esc(d.jp)}"></div></div></div>
+  <label>Topik / masalah yang diangkat</label><input data-st="topik" value="${esc(d.topik)}" placeholder="mis. Filter air sederhana, Jembatan dari kertas, Kompos dari sampah dapur">
+  <label>Kondisi / bahan tersedia (opsional)</label><input data-st="catatan" value="${esc(d.catatan)}" placeholder="mis. tanpa listrik, bahan bekas, 1 HP untuk dokumentasi">
+  <label>Materi dari buku (opsional)</label><div class="row"><button type="button" class="btn s a" data-act="stCam">📷 Foto Halaman</button><button type="button" class="btn s g" data-act="stUp">📎 Berkas</button></div>
+  <div>${stSrcList.map(x=>`<div class="mut" style="font-size:13px;margin-top:4px">${esc(x.name)} — ${esc(x.st)}</div>`).join('')}</div><input type="file" id="stc" accept="image/*" capture="environment" hidden><input type="file" id="stf" accept="image/*,.pdf,.docx,.txt" multiple hidden>
+  <textarea data-st="sumber" style="min-height:60px;margin-top:8px" placeholder="Teks materi hasil bacaan foto muncul di sini">${esc(d.sumber)}</textarea>
+  <div class="row" style="margin-top:14px"><button class="btn a" data-act="stAI">✨ Susun Perangkat dengan AI</button></div></div>
+  ${d.data?`<div class="card"><h3>Hasil</h3><div class="tbl">${stHtml(d,'rancangan').replace(/^<h3[^>]*>[\s\S]*?<\/h3>/,'')}</div>
+  <div class="row" style="margin-top:14px"><button class="btn t" data-act="stSave">💾 Simpan</button><button class="btn" data-act="stPrint" data-p="semua">🖨 Cetak Semua</button><button class="btn s" data-act="stPrint" data-p="rancangan">Rancangan</button><button class="btn s" data-act="stPrint" data-p="lkpd">LKPD</button><button class="btn s" data-act="stPrint" data-p="rubrik">Rubrik</button></div>
+  <div class="row" style="margin-top:10px"><button class="btn g s" data-act="stProjek">🎨 Tambah ke Daftar Projek (Karakter)</button><button class="btn g s" data-act="stRubrik">🧾 Simpan Rubrik ke Instrumen</button></div></div>`:''}</div>`;
+  v.querySelectorAll('textarea[data-st]').forEach(grow)}
+defs.stem={label:'Perangkat STEM',icon:'🔬',render:stPage};
+function stPick(id){const r=db.rpp.find(x=>x.id===id),d=stEdit;d.rppId=id;if(r){d.mapel=r.mapel;d.kelas=r.kelas;d.topik=r.topik;if(!d.sumber&&r.sumber_teks)d.sumber=r.sumber_teks.slice(0,3000)}stPage(view)}
+async function stRead(files){
+  if(!stEdit)return;stSrcList=[];
+  for(const f of files){const it={name:f.name||'foto kamera',st:'⏳ Membaca…'};stSrcList.push(it);stPage(view);
+    try{const t=(await readSource(f)).trim();if(t){stEdit.sumber=((stEdit.sumber?stEdit.sumber+'\n\n':'')+t).slice(0,8000);it.st=`✅ Terbaca (${t.length} huruf)`}else it.st='⚠ Tidak ada teks terbaca'}catch(e){it.st='⚠ '+String(e.message||e).slice(0,100)}
+    stPage(view)}
+}
+Object.assign(ACT,{
+  stNew:()=>{stEdit=blankSt();stSrcList=[];go()},
+  stOpen:d=>{stEdit=Object.assign(blankSt(),structuredClone(db.stem.find(x=>x.id===d.id)));stSrcList=[];go()},
+  stDel:d=>{if(confirm('Hapus perangkat ini?')){db.stem=db.stem.filter(x=>x.id!==d.id);save();go()}},
+  stBack:()=>{stEdit=null;go()},
+  stCam:()=>$('#stc').click(),stUp:()=>$('#stf').click(),
+  stSave:()=>{const d=stEdit;if(!d||!d.data){toast('Susun isinya dulu');return}d.updated=today();if(!d.id){d.id=uid();db.stem.push(structuredClone(d))}else db.stem=db.stem.map(x=>x.id===d.id?structuredClone(d):x);save();toast('Tersimpan ✅')},
+  stPrint:d=>{if(stEdit&&stEdit.data)doPrint(stHtml(stEdit,d.p||'semua'))},
+  stProjek:()=>{const d=stEdit;if(!d||!d.data)return;if(db.projek.some(p=>p.judul===d.data.judul)){toast('Projek ini sudah ada di Daftar Projek');return}
+    db.projek.push({id:uid(),judul:d.data.judul,tema:d.tema||d.mapel||'STEM',tanggal:today(),catatan:d.data.pertanyaan||d.data.deskripsi||''});save();toast('Ditambahkan — nilai per siswa di menu Karakter & Projek ✅')},
+  stRubrik:()=>{const d=stEdit;if(!d||!d.data||!d.data.rubrik.length){toast('Rubrik belum ada');return}
+    db.instrumen.push({id:uid(),jenis:'rubrik',rppId:'',mapel:d.mapel||'Projek STEM',kelas:d.kelas,topik:d.topik||d.tema,tp:'',catatan:'',data:{judul:'Rubrik '+d.data.judul,tujuan:d.data.deskripsi,kriteria:d.data.rubrik},updated:today()});save();toast('Rubrik tersimpan di menu Rubrik & Instrumen ✅')},
+  stAI:(b0,b)=>busy(b,'⏳ AI menyusun… (bisa 1 menit)',async()=>{
+    const d=stEdit;if(!cl(d.topik)&&!cl(d.tema)){toast('Isi topik atau pilih tema dulu');return}
+    const base={mode:d.mode==='p5'?'Projek P5 / kokurikuler':'Mata pelajaran '+(d.mapel||''),tema:d.tema,mapel:d.mapel,kelas:d.kelas,fase:faseOf(d.kelas),topik:d.topik,pertemuan:Math.max(1,Math.min(6,+d.pertemuan||4)),jp:d.jp,catatan:d.catatan,sumber_teks:(d.sumber||'').slice(0,3500),dplNama:DPL};
+    let data=null,full=false;
+    try{const r1=await tugas('stem',base,90000);data=stNorm(r1);if(!data.alur.length||!data.tujuan.length)throw new Error('kosong');
+      try{const r2=await tugas('stem2',{judul:data.judul,pertanyaan:data.pertanyaan,tujuan:data.tujuan,produk:data.produk,kelas:d.kelas,fase:faseOf(d.kelas),topik:d.topik||d.tema},80000);
+        const p=stNorm2(r2);if(p.rubrik.length&&p.lkpd.langkah.length){Object.assign(data,p);full=true}}catch(e){}
+      if(!full){const L=stLocal(d);if(!data.rubrik.length)data.rubrik=L.rubrik;if(!data.lkpd.langkah.length)data.lkpd=L.lkpd;if(!data.asesmen.formatif)data.asesmen=L.asesmen;if(!data.refleksi.length)data.refleksi=L.refleksi}
+      if(!data.dpl.length)data.dpl=[3,4,5];if(!data.pertanyaan)data.pertanyaan=stLocal(d).pertanyaan;
+      for(const k of Object.keys(STK))if(!data.integrasi[k].tp)data.integrasi[k]=stLocal(d).integrasi[k];
+      if(!data.alat_bahan.length)data.alat_bahan=stLocal(d).alat_bahan;if(!data.produk)data.produk=stLocal(d).produk;
+      d.data=data;toast(full?'Perangkat STEM selesai ✨ — periksa lalu simpan':'Rancangan dari AI, LKPD/rubrik memakai template — periksa lalu simpan')}
+    catch(e){d.data=stLocal(d);toast('AI belum tersambung — memakai template STEM umum, sesuaikan seperlunya')}
+    stPage(view)})
+});
+view.addEventListener('input',e=>{const t=e.target;if(t.dataset.st&&stEdit&&t.dataset.st!=='mode'){stEdit[t.dataset.st]=t.value;if(t.tagName==='TEXTAREA')grow(t)}});
+view.addEventListener('change',e=>{const t=e.target;
+  if(t.dataset.st==='mode'&&stEdit){stEdit.mode=t.value;stPage(view)}
+  if(t.dataset.st==='tema'&&stEdit)stEdit.tema=t.value;
+  if(t.id==='srpp'&&stEdit)stPick(t.value);
+  if(t.id==='stc'||t.id==='stf'){const fs=[...t.files];t.value='';stRead(fs)}});
+PAGES.stem=defs.stem;
+{const tmp={...PAGES};Object.keys(PAGES).forEach(k=>delete PAGES[k]);['dashboard','asisten','dini','guru','impor','siswa','mapel','kalender','rpp','diff','perangkat','stem','soal','bahan','instrumen','asesmen','jadwal','absensi','absrekap','nilai','nilaicepat','koreksi','leger','tl','catcepat','karakter','rapor','kartu','jurnal','surat','kinerja','rekap','excel','wali','tahun','setting'].forEach(k=>{if(tmp[k])PAGES[k]=tmp[k]})}
+
+
 /* ===== navigasi ===== */
 const nav=$('#drawer');
 nav.innerHTML=Object.entries(PAGES).map(([k,p])=>`<div class="ni" data-p="${k}" role="link" tabindex="0"><span class="ic">${p.icon}</span>${p.label}</div>`).join('');
 nav.insertAdjacentHTML('beforeend','<div class="ncr"><b>KelasKu</b><br>Design by Akhmad Fitra Harry, S.Pd</div>');
 const closeNav=()=>{nav.classList.remove('open');$('#ov').classList.remove('on')};
-nav.addEventListener('click',e=>{const n=e.target.closest('.ni');if(!n)return;const p=n.dataset.p;if(p==='rpp')rppEdit=null;if(p==='perangkat')perEdit=null;if(p==='soal')soalEdit=null;if(p==='siswa')imp=null;if(location.hash==='#/'+p){go()}else location.hash='#/'+p;closeNav()});
+nav.addEventListener('click',e=>{const n=e.target.closest('.ni');if(!n)return;const p=n.dataset.p;if(p==='rpp')rppEdit=null;if(p==='perangkat')perEdit=null;if(p==='soal')soalEdit=null;if(p==='instrumen')insEdit=null;if(p==='diff')dfEdit=null;if(p==='bahan')bhEdit=null;if(p==='stem')stEdit=null;if(p==='siswa')imp=null;if(location.hash==='#/'+p){go()}else location.hash='#/'+p;closeNav()});
 $('#burger').onclick=()=>{nav.classList.toggle('open');$('#ov').classList.toggle('on')};
 $('#ov').onclick=closeNav;
 $('#mc').onclick=()=>$('#modal').classList.remove('on');
