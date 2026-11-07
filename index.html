@@ -2140,7 +2140,7 @@ Object.assign(ACT,{
       for(const k of Object.keys(STK))if(!data.integrasi[k].tp)data.integrasi[k]=stLocal(d).integrasi[k];
       if(!data.alat_bahan.length)data.alat_bahan=stLocal(d).alat_bahan;if(!data.produk)data.produk=stLocal(d).produk;
       d.data=data;toast(full?'Perangkat STEM selesai ✨ — periksa lalu simpan':'Rancangan dari AI, LKPD/rubrik memakai template — periksa lalu simpan')}
-    catch(e){d.data=stLocal(d);toast('AI belum tersambung — memakai template STEM umum, sesuaikan seperlunya')}
+    catch(e){d.data=stLocal(d);toast('AI belum tersambung ('+String(e&&e.message||e).slice(0,90)+') — memakai template STEM umum')}
     stPage(view)})
 });
 view.addEventListener('input',e=>{const t=e.target;if(t.dataset.st&&stEdit&&t.dataset.st!=='mode'){stEdit[t.dataset.st]=t.value;if(t.tagName==='TEXTAREA')grow(t)}});
