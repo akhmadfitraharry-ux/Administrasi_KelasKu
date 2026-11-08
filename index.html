@@ -272,7 +272,7 @@ const WA_ADMIN='6285251029809';
 const aiGet=()=>{try{return JSON.parse(localStorage.getItem('kelasku3d.ai')||'{}')||{}}catch{return{}}};
 const aiSet=o=>{try{localStorage.setItem('kelasku3d.ai',JSON.stringify(o))}catch{toast('Tidak bisa menyimpan di browser ini')}};
 const DANA='085251029809';
-const PAKET=[['gratis','Gratis 1 bulan (hanya sekali)',0],['1b','1 bulan',20000],['6b','6 bulan',80000],['1t','1 tahun',150000],['2t','2 tahun',null]];
+const PAKET=[['gratis','Gratis 1 bulan (hanya sekali)',0],['1b','1 bulan',20000],['6b','6 bulan',80000],['1t','1 tahun',150000]];
 const rp=n=>n==null?'hubungi pemilik':n?'Rp'+n.toLocaleString('id-ID'):'Gratis';
 const devId=()=>{try{let d=localStorage.getItem('kelasku3d.dev');if(!d){const A='ABCDEFGHJKLMNPQRSTUVWXYZ23456789',r=crypto.getRandomValues(new Uint8Array(8));d=[...r].map(x=>A[x%A.length]).join('');d=d.slice(0,4)+'-'+d.slice(4);localStorage.setItem('kelasku3d.dev',d)}return d}catch{return'XXXX-XXXX'}};
 const aksesInfo=()=>{const k=String(aiGet().akses||'').toUpperCase().split('-');if(k.length!==4||k[0]!=='KK')return'';const e=k[2];if(e==='0')return'Kode aktif tanpa batas waktu.';if(!/^\d{8}$/.test(e))return'';const t=new Date(+e.slice(0,4),+e.slice(4,6)-1,+e.slice(6,8));return(t<new Date(new Date().toDateString())?'⚠ Kode sudah kedaluwarsa pada ':'Kode berlaku sampai ')+fmtD(e.slice(0,4)+'-'+e.slice(4,6)+'-'+e.slice(6,8))+'.'};
@@ -390,15 +390,18 @@ setting:{label:'Pengaturan',icon:'⚙️',render(v){
 <div class="card"><h3>🔑 Akses AI</h3><p class="mut">Pilih salah satu: <b>kode akses</b> dari pembuat aplikasi, atau <b>kunci Gemini pribadi</b> (gratis, kuotanya milik Anda sendiri). Tersimpan hanya di perangkat ini dan tidak ikut cadangan.</p>
   <label>Kode akses</label><input id="akses" value="${esc(aiGet().akses||'')}" placeholder="KK-NAMA-20271231-ABCDE12345" autocomplete="off">
   <label>Kunci Gemini pribadi (opsional)</label><input id="gkey" type="password" value="${esc(aiGet().gkey||'')}" placeholder="AIza…" autocomplete="off">
-  <div class="row" style="margin-top:12px"><button class="btn t s" data-act="saveAkses">Simpan</button></div>
+  <div class="row" style="margin-top:12px"><button class="btn t s" data-act="saveAkses">Simpan</button><button class="btn a s" data-act="tutGem">📘 Cara dapat kunci gratis</button></div>
+  <div id="tutGem" hidden style="margin-top:12px;padding:14px;border-radius:16px;background:#f3f1ff;border:2px solid #c9c2ff"><b>Cara mendapat kunci Gemini gratis (Google AI Studio)</b>
+  <ol style="margin:8px 0 0 18px;font-size:14px;line-height:1.7"><li>Tekan tombol <b>Buka Google AI Studio</b> di bawah ini, lalu masuk dengan akun Google (Gmail).</li><li>Bila muncul persetujuan syarat layanan, centang lalu lanjutkan.</li><li>Tekan <b>Create API key</b> (atau <b>Get API key</b> → <b>Create API key</b>).</li><li>Bila diminta memilih proyek, pilih <b>Create API key in new project</b>.</li><li>Kunci akan muncul, diawali <code>AIza</code>. Tekan ikon <b>salin</b> di sebelahnya.</li><li>Kembali ke aplikasi ini, tempel di kotak <b>Kunci Gemini pribadi</b> di atas, lalu tekan <b>Simpan</b>.</li><li>Tekan <b>Tes Koneksi AI</b> di bagian Alamat AI, atau langsung coba satu fitur AI.</li></ol>
+  <div class="row" style="margin-top:10px"><button class="btn t s" data-act="bukaStudio">🌐 Buka Google AI Studio</button></div>
+  <small class="mut">Kuota gratis Google dibatasi per menit dan per hari. Pada paket gratis, Google dapat memakai isi permintaan untuk meningkatkan produknya, jadi hindari mengirim data pribadi siswa yang sensitif. Kunci Anda hanya diteruskan lewat server aplikasi ke Google dan tidak disimpan.</small></div>
   ${aksesInfo()?`<p style="margin-top:10px;font-weight:700">${esc(aksesInfo())}</p>`:''}
   <h4 style="margin:18px 0 6px">Beli / perpanjang kode akses</h4>
   <p class="mut" style="font-size:13px">ID Perangkat Anda: <b id="devid">${esc(devId())}</b> <button class="btn s g" style="padding:4px 10px" data-act="salinId">Salin</button></p>
   <label>Pilih paket</label><select id="paket">${PAKET.map(x=>`<option value="${x[0]}">${x[1]} — ${rp(x[2])}</option>`).join('')}</select>
   <p class="mut" style="font-size:13px;margin-top:10px">Transfer lewat <b>DANA ${DANA}</b>, lalu kirim bukti transfer ke WhatsApp. Kode dikirim setelah pembayaran dicek. Untuk paket gratis, cukup kirim permintaan tanpa transfer.</p>
   <div class="row" style="margin-top:8px"><button class="btn s g" data-act="salinDana">Salin nomor DANA</button><button class="btn a s" data-act="mintaKode">💬 Kirim permintaan via WhatsApp</button></div>
-  <details style="margin-top:12px"><summary><b>Cara membuat kunci Gemini gratis</b></summary><ol style="margin:8px 0 0 18px;font-size:13px;line-height:1.6"><li>Buka <b>aistudio.google.com</b> dan masuk dengan akun Google.</li><li>Pilih <b>Get API key</b> → <b>Create API key</b>.</li><li>Salin kuncinya (diawali <code>AIza</code>).</li><li>Tempel di kotak “Kunci Gemini pribadi” di atas, lalu <b>Simpan</b>.</li><li>Tekan <b>Tes Koneksi AI</b> di bawah “Alamat AI” untuk memastikan.</li></ol>
-  <small class="mut">Kuota gratis Google dibatasi per menit dan per hari. Pada paket gratis, Google dapat memakai isi permintaan untuk meningkatkan produknya, jadi hindari mengirim data pribadi siswa yang sensitif. Kunci Anda hanya diteruskan lewat server aplikasi ke Google dan tidak disimpan.</small></details></div>
+</div>
   <div class="card"><h3>💾 Cadangan Data</h3><p class="mut">Data tersimpan di perangkat ini. Unduh cadangan secara berkala.</p><div class="row" style="margin-top:12px"><button class="btn" data-act="backup">⬇ Unduh Cadangan</button><label class="btn a" style="margin:0;cursor:pointer">⬆ Pulihkan<input type="file" id="rf" accept=".json" hidden></label><button class="btn r" data-act="reset">Hapus Semua</button></div></div>
   <div class="card"><h3>🎯 Penilaian</h3><label>Batas ketuntasan (KKTP) untuk deskripsi rapor</label><input id="kktp" type="number" min="0" max="100" value="${kktp()}"><button class="btn t s" style="margin-top:12px" data-act="saveKktp">Simpan</button></div>
   <div class="card"><h3>☁️ Cadangan Cloud</h3><p class="mut">${bkText()}</p><div class="row" style="margin:12px 0"><button class="btn t" data-act="shareBackup">📤 Bagikan Cadangan</button></div><small class="mut">Pilih Google Drive, WhatsApp, atau email dari menu bagikan HP. Tanpa pengaturan tambahan.</small>
@@ -661,6 +664,8 @@ tesAI:(d0,b)=>busy(b,'⏳ Menguji…',async()=>{
   L.push(await probe('tugas/soal',apiBase('tugas'),{task:'soal',topik:''}));
   L.push(/kode akses|Kunci Gemini|kedaluwarsa/i.test(L[2])?'❌ Akses ditolak — periksa kode akses atau kunci Gemini di atas.':/Topik kosong/.test(L[2])?'✅ Server sudah punya fitur STEM.':/Tugas tidak dikenal/.test(L[2])?'❌ Server memakai tugas.js LAMA. Pastikan alamat di atas menuju Worker yang benar dan tugas.js terbaru sudah ter-deploy.':/binding|AI/i.test(L[2])?'❌ Binding Workers AI (AI) belum terpasang di server ini.':'⚠ Periksa alamat/akses server.');
   o.textContent=L.join('\n')}),
+tutGem:()=>{const t=$('#tutGem');if(t)t.hidden=!t.hidden},
+bukaStudio:()=>window.open('https://aistudio.google.com/apikey','_blank'),
 saveAkses:()=>{aiSet({akses:$('#akses').value.trim(),gkey:$('#gkey').value.trim()});toast('Akses AI tersimpan ✅')},
 mintaKode:()=>{const n=db.guru.nama||'',sel=$('#paket'),k=(sel&&sel.value)||'gratis',pk=PAKET.find(x=>x[0]===k)||PAKET[0];
   const t=`Halo, saya ${n||'(nama)'}${db.guru.sekolah?' dari '+db.guru.sekolah:''}.\nSaya ingin kode akses AI KelasKu paket: ${pk[1]}${pk[2]?' ('+rp(pk[2])+')':''}.\nID Perangkat: ${devId()}\n`+(pk[2]!==0?'Saya sudah transfer via DANA, bukti terlampir.':'Mohon kode gratis 1 bulan.');
