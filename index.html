@@ -268,6 +268,15 @@ function autoDpl(d){
   const extra=/seni|musik|gambar|kerajinan|tari|lagu|prakarya/.test(m)?4:/pjok|olahraga|jasmani|senam|kesehatan|gizi|permainan/.test(m)?7:/pancasila|pkn|kewargaan|norma|keberagaman/.test(m)?2:/mandiri|tanggung jawab|disiplin/.test(m)?6:0;
   if(extra)s.push(extra);return s.sort((a,b)=>a-b);
 }
+const WA_ADMIN='6285251029809';
+const aiGet=()=>{try{return JSON.parse(localStorage.getItem('kelasku3d.ai')||'{}')||{}}catch{return{}}};
+const aiSet=o=>{try{localStorage.setItem('kelasku3d.ai',JSON.stringify(o))}catch{toast('Tidak bisa menyimpan di browser ini')}};
+const DANA='085251029809';
+const PAKET=[['gratis','Gratis 1 bulan (hanya sekali)',0],['1b','1 bulan',20000],['6b','6 bulan',80000],['1t','1 tahun',150000],['2t','2 tahun',null]];
+const rp=n=>n==null?'hubungi pemilik':n?'Rp'+n.toLocaleString('id-ID'):'Gratis';
+const devId=()=>{try{let d=localStorage.getItem('kelasku3d.dev');if(!d){const A='ABCDEFGHJKLMNPQRSTUVWXYZ23456789',r=crypto.getRandomValues(new Uint8Array(8));d=[...r].map(x=>A[x%A.length]).join('');d=d.slice(0,4)+'-'+d.slice(4);localStorage.setItem('kelasku3d.dev',d)}return d}catch{return'XXXX-XXXX'}};
+const aksesInfo=()=>{const k=String(aiGet().akses||'').toUpperCase().split('-');if(k.length!==4||k[0]!=='KK')return'';const e=k[2];if(e==='0')return'Kode aktif tanpa batas waktu.';if(!/^\d{8}$/.test(e))return'';const t=new Date(+e.slice(0,4),+e.slice(4,6)-1,+e.slice(6,8));return(t<new Date(new Date().toDateString())?'⚠ Kode sudah kedaluwarsa pada ':'Kode berlaku sampai ')+fmtD(e.slice(0,4)+'-'+e.slice(4,6)+'-'+e.slice(6,8))+'.'};
+const aiHdr=()=>{const a=aiGet(),h={'content-type':'application/json','x-dev':devId()};if(a.gkey)h['x-gemini-key']=a.gkey;if(a.akses)h['x-akses']=a.akses;return h};
 const apiBase=kind=>(db.setting.api||'/api/generate').replace(/generate\/?$/,kind);
 function imgToJpeg(file,max=1400){return new Promise((res,rej)=>{const u=URL.createObjectURL(file),i=new Image();i.onload=()=>{const k=Math.min(1,max/Math.max(i.width,i.height)),c=document.createElement('canvas');c.width=Math.round(i.width*k);c.height=Math.round(i.height*k);c.getContext('2d').drawImage(i,0,0,c.width,c.height);URL.revokeObjectURL(u);res(c.toDataURL('image/jpeg',.82))};i.onerror=()=>rej(new Error('Gambar tidak bisa dibuka'));i.src=u})}
 const fileB64=f=>new Promise((res,rej)=>{const r=new FileReader();r.onload=()=>res(String(r.result).split(',')[1]);r.onerror=()=>rej(new Error('Berkas gagal dibaca'));r.readAsDataURL(f)});
@@ -278,7 +287,7 @@ async function readSource(f,mode){
   if(/^image\//.test(f.type)){data=(await imgToJpeg(f)).split(',')[1];type='image/jpeg'}else data=await fileB64(f);
   const c=new AbortController(),tm=setTimeout(()=>c.abort(),90000);
   try{
-    const r=await fetch(apiBase('extract'),{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({name:f.name||'foto.jpg',type,data,mode}),signal:c.signal});
+    const r=await fetch(apiBase('extract'),{method:'POST',headers:aiHdr(),body:JSON.stringify({name:f.name||'foto.jpg',type,data,mode}),signal:c.signal});
     const j=await r.json();if(!j.ok){const e=new Error(j.error||'gagal dibaca');e.srv=1;throw e}
     return j.text||'';
   }catch(e){if(e.srv)throw e;throw new Error(e.name==='AbortError'?'Waktu habis':'AI online belum tersambung — ketik atau tempel teks sumber manual')}
@@ -304,7 +313,7 @@ async function aiGen(btn){
   let data,src='ai';
   try{
     const c=new AbortController();const tm=setTimeout(()=>c.abort(),80000);
-    const r=await fetch(db.setting.api||'/api/generate',{method:'POST',headers:{'content-type':'application/json'},signal:c.signal,body:JSON.stringify({sekolah:db.guru.sekolah,mapel:d.mapel,kelas:d.kelas,fase:faseOf(d.kelas),semester:d.semester,topik:d.topik,tp:d.tp,alokasi:d.alokasi,sumber:d.sumber,sumber_teks:(d.sumber_teks||'').slice(0,8000),dplAuto:d.dplAuto,catatan:d.catatan,dpl:d.dpl.map(n=>({n,nama:DPL[n-1]}))})});
+    const r=await fetch(db.setting.api||'/api/generate',{method:'POST',headers:aiHdr(),signal:c.signal,body:JSON.stringify({sekolah:db.guru.sekolah,mapel:d.mapel,kelas:d.kelas,fase:faseOf(d.kelas),semester:d.semester,topik:d.topik,tp:d.tp,alokasi:d.alokasi,sumber:d.sumber,sumber_teks:(d.sumber_teks||'').slice(0,8000),dplAuto:d.dplAuto,catatan:d.catatan,dpl:d.dpl.map(n=>({n,nama:DPL[n-1]}))})});
     clearTimeout(tm);const j=await r.json();if(!j.ok)throw new Error(j.error||'gagal');data=j.data;
   }catch(e){if(d.dplAuto){d.dpl=autoDpl(d);d.dplSet=true}data=localRpp(d);src='local'}
   TXTKEYS.concat(['rubrik_judul','rubrik_tujuan']).forEach(k=>{if(data[k]&&!(k==='tp'&&d.tp))d[k]=norm(data[k])});
@@ -378,6 +387,18 @@ wali:{label:'Wali Kelas',icon:'🏫',render(v){
   <h3 style="margin-bottom:12px">Catatan Perkembangan Siswa</h3>${db.siswa.length?[...db.siswa].sort((a,b)=>a.nama.localeCompare(b.nama)).map(x=>`<div class="card"><b>${esc(x.nama)}</b><textarea data-cat="${x.id}" placeholder="Karakter, kemajuan belajar, catatan untuk orang tua…">${esc(db.catatan[x.id]||'')}</textarea></div>`).join(''):`<div class="card empty"><b>🧒</b>Belum ada data siswa.</div>`}</div>`}},
 setting:{label:'Pengaturan',icon:'⚙️',render(v){
   v.innerHTML=`<div class="wrap"><div class="card"><h3>🤖 Alamat AI</h3><p class="mut">Endpoint fungsi Cloudflare untuk pembuatan RPP. Biarkan <code>/api/generate</code> jika aplikasi dibuka dari alamat Cloudflare Anda (workers.dev). Jika file dibuka langsung dari HP, isi alamat lengkap, mis. <code>https://administrasi-kelasku.AKUN.workers.dev/api/generate</code>.</p><input id="api" value="${esc(db.setting.api)}"><button class="btn t s" style="margin-top:12px" data-act="saveApi">Simpan</button> <button class="btn g s" style="margin-top:12px" data-act="tesAI">🔍 Tes Koneksi AI</button><div id="tesAIout" class="mut" style="margin-top:10px;font-size:13px;white-space:pre-wrap"></div></div>
+<div class="card"><h3>🔑 Akses AI</h3><p class="mut">Pilih salah satu: <b>kode akses</b> dari pembuat aplikasi, atau <b>kunci Gemini pribadi</b> (gratis, kuotanya milik Anda sendiri). Tersimpan hanya di perangkat ini dan tidak ikut cadangan.</p>
+  <label>Kode akses</label><input id="akses" value="${esc(aiGet().akses||'')}" placeholder="KK-NAMA-20271231-ABCDE12345" autocomplete="off">
+  <label>Kunci Gemini pribadi (opsional)</label><input id="gkey" type="password" value="${esc(aiGet().gkey||'')}" placeholder="AIza…" autocomplete="off">
+  <div class="row" style="margin-top:12px"><button class="btn t s" data-act="saveAkses">Simpan</button></div>
+  ${aksesInfo()?`<p style="margin-top:10px;font-weight:700">${esc(aksesInfo())}</p>`:''}
+  <h4 style="margin:18px 0 6px">Beli / perpanjang kode akses</h4>
+  <p class="mut" style="font-size:13px">ID Perangkat Anda: <b id="devid">${esc(devId())}</b> <button class="btn s g" style="padding:4px 10px" data-act="salinId">Salin</button></p>
+  <label>Pilih paket</label><select id="paket">${PAKET.map(x=>`<option value="${x[0]}">${x[1]} — ${rp(x[2])}</option>`).join('')}</select>
+  <p class="mut" style="font-size:13px;margin-top:10px">Transfer lewat <b>DANA ${DANA}</b>, lalu kirim bukti transfer ke WhatsApp. Kode dikirim setelah pembayaran dicek. Untuk paket gratis, cukup kirim permintaan tanpa transfer.</p>
+  <div class="row" style="margin-top:8px"><button class="btn s g" data-act="salinDana">Salin nomor DANA</button><button class="btn a s" data-act="mintaKode">💬 Kirim permintaan via WhatsApp</button></div>
+  <details style="margin-top:12px"><summary><b>Cara membuat kunci Gemini gratis</b></summary><ol style="margin:8px 0 0 18px;font-size:13px;line-height:1.6"><li>Buka <b>aistudio.google.com</b> dan masuk dengan akun Google.</li><li>Pilih <b>Get API key</b> → <b>Create API key</b>.</li><li>Salin kuncinya (diawali <code>AIza</code>).</li><li>Tempel di kotak “Kunci Gemini pribadi” di atas, lalu <b>Simpan</b>.</li><li>Tekan <b>Tes Koneksi AI</b> di bawah “Alamat AI” untuk memastikan.</li></ol>
+  <small class="mut">Kuota gratis Google dibatasi per menit dan per hari. Pada paket gratis, Google dapat memakai isi permintaan untuk meningkatkan produknya, jadi hindari mengirim data pribadi siswa yang sensitif. Kunci Anda hanya diteruskan lewat server aplikasi ke Google dan tidak disimpan.</small></details></div>
   <div class="card"><h3>💾 Cadangan Data</h3><p class="mut">Data tersimpan di perangkat ini. Unduh cadangan secara berkala.</p><div class="row" style="margin-top:12px"><button class="btn" data-act="backup">⬇ Unduh Cadangan</button><label class="btn a" style="margin:0;cursor:pointer">⬆ Pulihkan<input type="file" id="rf" accept=".json" hidden></label><button class="btn r" data-act="reset">Hapus Semua</button></div></div>
   <div class="card"><h3>🎯 Penilaian</h3><label>Batas ketuntasan (KKTP) untuk deskripsi rapor</label><input id="kktp" type="number" min="0" max="100" value="${kktp()}"><button class="btn t s" style="margin-top:12px" data-act="saveKktp">Simpan</button></div>
   <div class="card"><h3>☁️ Cadangan Cloud</h3><p class="mut">${bkText()}</p><div class="row" style="margin:12px 0"><button class="btn t" data-act="shareBackup">📤 Bagikan Cadangan</button></div><small class="mut">Pilih Google Drive, WhatsApp, atau email dari menu bagikan HP. Tanpa pengaturan tambahan.</small>
@@ -388,7 +409,7 @@ setting:{label:'Pengaturan',icon:'⚙️',render(v){
 };
 let absDate='';
 /* ===== util tambahan ===== */
-async function postJ(url,body,ms=75000){const c=new AbortController(),tm=setTimeout(()=>c.abort(),ms);try{const r=await fetch(url,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(body),signal:c.signal});const j=await r.json();if(!j.ok)throw new Error(j.error||'gagal');return j.data}finally{clearTimeout(tm)}}
+async function postJ(url,body,ms=75000){const c=new AbortController(),tm=setTimeout(()=>c.abort(),ms);try{const r=await fetch(url,{method:'POST',headers:aiHdr(),body:JSON.stringify(body),signal:c.signal});const j=await r.json();if(!j.ok)throw new Error(j.error||'gagal');return j.data}finally{clearTimeout(tm)}}
 const tugas=(task,body,ms)=>postJ(apiBase('tugas'),{task,...body},ms);
 const printRaw=h=>{$('#printArea').innerHTML=h;setTimeout(()=>window.print(),150)};
 const sortSiswa=()=>[...db.siswa].sort((a,b)=>a.nama.localeCompare(b.nama));
@@ -633,13 +654,19 @@ prev:d=>{const x=DS()[d.k],p=$('#prev');p.hidden=false;p.innerHTML=`<h3>${x.labe
 print:d=>{const x=DS()[d.k];doPrint(`<h3 style="text-align:center;margin-bottom:8px">${esc(x.label.toUpperCase())}</h3>`+tableHtml(x.head,x.rows))},
 xls:d=>downloadXls(d.k),
 tesAI:(d0,b)=>busy(b,'⏳ Menguji…',async()=>{
-  const o=$('#tesAIout'),L=[];const base=db.setting.api||'/api/generate';L.push('Alamat dipakai: '+base);
-  const probe=async(nm,url,body)=>{try{const r=await fetch(url,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(body)});const t=await r.text();let j=null;try{j=JSON.parse(t)}catch(e){}
+  const o=$('#tesAIout'),L=[];const base=db.setting.api||'/api/generate';L.push('Alamat dipakai: '+base);L.push('Jalur AI: '+(aiGet().gkey?'Gemini (kunci pribadi)':aiGet().akses?'Server aplikasi (kode akses)':'Server aplikasi (tanpa kode)'));
+  const probe=async(nm,url,body)=>{try{const r=await fetch(url,{method:'POST',headers:aiHdr(),body:JSON.stringify(body)});const t=await r.text();let j=null;try{j=JSON.parse(t)}catch(e){}
     return nm+' → HTTP '+r.status+' • '+(j?(j.error||(j.ok?'ok':'?')):'bukan JSON (alamat salah?)')}catch(e){return nm+' → tidak terjangkau ('+String(e.message||e).slice(0,60)+')'}};
   L.push(await probe('tugas/stem',apiBase('tugas'),{task:'stem',topik:''}));
   L.push(await probe('tugas/soal',apiBase('tugas'),{task:'soal',topik:''}));
-  L.push(/Topik kosong/.test(L[1])?'✅ Server sudah punya fitur STEM.':/Tugas tidak dikenal/.test(L[1])?'❌ Server memakai tugas.js LAMA. Pastikan alamat di atas menuju Worker yang benar dan tugas.js terbaru sudah ter-deploy.':/binding|AI/i.test(L[1])?'❌ Binding Workers AI (AI) belum terpasang di server ini.':'⚠ Periksa alamat/akses server.');
+  L.push(/kode akses|Kunci Gemini|kedaluwarsa/i.test(L[2])?'❌ Akses ditolak — periksa kode akses atau kunci Gemini di atas.':/Topik kosong/.test(L[2])?'✅ Server sudah punya fitur STEM.':/Tugas tidak dikenal/.test(L[2])?'❌ Server memakai tugas.js LAMA. Pastikan alamat di atas menuju Worker yang benar dan tugas.js terbaru sudah ter-deploy.':/binding|AI/i.test(L[2])?'❌ Binding Workers AI (AI) belum terpasang di server ini.':'⚠ Periksa alamat/akses server.');
   o.textContent=L.join('\n')}),
+saveAkses:()=>{aiSet({akses:$('#akses').value.trim(),gkey:$('#gkey').value.trim()});toast('Akses AI tersimpan ✅')},
+mintaKode:()=>{const n=db.guru.nama||'',sel=$('#paket'),k=(sel&&sel.value)||'gratis',pk=PAKET.find(x=>x[0]===k)||PAKET[0];
+  const t=`Halo, saya ${n||'(nama)'}${db.guru.sekolah?' dari '+db.guru.sekolah:''}.\nSaya ingin kode akses AI KelasKu paket: ${pk[1]}${pk[2]?' ('+rp(pk[2])+')':''}.\nID Perangkat: ${devId()}\n`+(pk[2]!==0?'Saya sudah transfer via DANA, bukti terlampir.':'Mohon kode gratis 1 bulan.');
+  window.open('https://wa.me/'+WA_ADMIN+'?text='+encodeURIComponent(t),'_blank')},
+salinId:()=>{try{navigator.clipboard.writeText(devId());toast('ID Perangkat disalin ✅')}catch{toast('Salin manual: '+devId())}},
+salinDana:()=>{try{navigator.clipboard.writeText(DANA);toast('Nomor DANA disalin ✅')}catch{toast('DANA: '+DANA)}},
 saveApi:()=>{db.setting.api=$('#api').value.trim()||'/api/generate';save();toast('Tersimpan ✅')},
 backup:()=>{dl(new Blob([JSON.stringify(db,null,1)],{type:'application/json'}),`cadangan-kelasku-${today()}.json`);markBackup()},
 reset:()=>{if(confirm('Hapus SEMUA data di perangkat ini? Pastikan sudah membuat cadangan.')){db=structuredClone(DEF);save();ini();go()}}

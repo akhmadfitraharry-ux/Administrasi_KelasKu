@@ -1,39 +1,11 @@
 // Cloudflare Pages Function: POST /api/generate
 // Memakai Workers AI (binding bernama "AI") untuk menyusun RPP format Pembelajaran Mendalam (DPL).
-// Model teks Workers AI. Model lama (llama-3.1-8b) sudah dihentikan Cloudflare; dicoba berurutan sampai ada yang menjawab.
-const MODELS = ['@cf/google/gemma-4-26b-a4b-it', '@cf/zai-org/glm-4.7-flash', '@cf/moonshotai/kimi-k2.6'];
-const pickText = (out) => {
-  let t = '';
-  if (typeof out === 'string') t = out;
-  else if (out && typeof out.response === 'string') t = out.response;
-  else if (out && out.choices && out.choices[0]) {
-    const c = out.choices[0].message ? out.choices[0].message.content : out.choices[0].text;
-    t = Array.isArray(c) ? c.map((x) => (x && x.text) || '').join('') : String(c || '');
-  }
-  return t.replace(/<think>[\s\S]*?<\/think>/g, '').trim();
-};
-async function askAI(env, messages, max, temperature) {
-  let last = new Error('AI tidak menjawab');
-  for (const model of MODELS) {
-    for (const extra of [{ chat_template_kwargs: { enable_thinking: false } }, {}]) {
-      try {
-        const out = await env.AI.run(model, { messages, max_completion_tokens: max * 2, temperature, ...extra });
-        const t = pickText(out);
-        if (t.includes('{')) return t;
-        last = new Error('Respons AI kosong');
-        break;
-      } catch (e) {
-        last = e;
-      }
-    }
-  }
-  throw last;
-}
+import { gate, askAI, CORS_HEADERS } from './ai.js';
 
 const CORS = {
   'access-control-allow-origin': '*',
   'access-control-allow-methods': 'POST, OPTIONS',
-  'access-control-allow-headers': 'content-type',
+  'access-control-allow-headers': CORS_HEADERS,
 };
 const json = (obj, status = 200) =>
   new Response(JSON.stringify(obj), {
@@ -56,7 +28,7 @@ const ALL_DPL = [
 
 export async function onRequestPost({ request, env }) {
   try {
-    if (!env.AI) return json({ ok: false, error: 'Binding Workers AI (AI) belum dipasang.' }, 500);
+    const ctx = await gate(request, env);
 
     const b = await request.json();
     const clean = (s, n = 400) => String(s ?? '').slice(0, n);
@@ -98,7 +70,7 @@ Keluarkan JSON dengan kunci berikut (semua nilai string kecuali "dpl" dan "rubri
 "rubrik_judul", "rubrik_tujuan", dan "rubrik" berupa array 3 objek dengan kunci "indikator","baru_memulai","berkembang","cakap","mahir".
 Aturan: setiap langkah kegiatan diakhiri penanda DPL yang sesuai, mis. "(DPL 3)". Langkah kegiatan harus aktif, berpusat pada peserta didik, sesuai usia SD, dan tidak memerlukan proyektor kecuali disebut. Ringkas namun lengkap.`;
 
-    const text = await askAI(env, [{ role: 'system', content: system }, { role: 'user', content: user }], 2800, 0.5);
+    const text = await askAI(env, ctx, system, user, 2800, 0.5);
     const m = text.match(/\{[\s\S]*\}/);
     if (!m) return json({ ok: false, error: 'Respons AI tidak berformat JSON' }, 502);
 
@@ -110,6 +82,6 @@ Aturan: setiap langkah kegiatan diakhiri penanda DPL yang sesuai, mis. "(DPL 3)"
     }
     return json({ ok: true, data });
   } catch (e) {
-    return json({ ok: false, error: String(e && e.message ? e.message : e) }, 500);
+    return json({ ok: false, error: String(e && e.message ? e.message : e) }, (e && e.status) || 500);
   }
 }
