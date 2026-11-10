@@ -90,6 +90,7 @@ label{display:block;font-weight:650;font-size:14px;margin:12px 0 5px}
 @media print{#printArea .cmp td,#printArea .cmp th{text-align:center;padding:2px 3px;font-size:10px}#printArea .cmp td:nth-child(2){text-align:left}}
 #printArea{display:none}
 .pb{page-break-after:always;break-after:page}
+.mdprev table{width:100%;border-collapse:collapse;margin:4px 0}.mdprev td,.mdprev th{border:1px solid #cfc8f7;padding:6px 8px;font-size:13px;vertical-align:top;text-align:left}.mdprev h3{margin:10px 0 4px;font-size:15px}.mdprev .pb{border-top:2px dashed #c9c2ff;margin:10px 0}
 .brand small.cr{font-size:10.5px;line-height:1.2;margin-top:2px}#ptitle{max-width:1000px;margin:0 auto 14px;font-size:22px}.ncr{margin:18px 8px 8px;padding-top:12px;border-top:1px dashed #d8d3f7;font-size:12px;color:var(--mut);text-align:center;line-height:1.5}.ncr b{color:var(--p2);font-size:14px}
 @media print{body>*:not(#printArea){display:none!important}#printArea{display:block;color:#000;background:#fff;padding:8mm}
 #printArea td,#printArea th{border:1px solid #000;padding:4px 6px;font-size:12px;vertical-align:top;text-align:left}
@@ -125,7 +126,7 @@ const nm=(col,id,key='nama')=>(db[col].find(x=>x.id===id)||{})[key]||'-';
 
 /* ===== penyimpanan lokal (offline-first) ===== */
 const KEY='kelasku3d.v1';
-const DEF={guru:{nama:'',nip:'',sekolah:'',npsn:'',kelas:'',tahun:'2026/2027',semester:'Ganjil',kepsek:'',nipKepsek:''},siswa:[],mapel:[],rpp:[],asesmen:[],jadwal:[],absensi:{},nilai:[],jurnal:[],catatan:{},karakter:{},projek:[],kalender:[],tl:{},instrumen:[],dini:{},diff:[],bahan:[],stem:[],arsip:[],rapor:{},perangkat:[],soal:[],setting:{api:'/api/generate',kktp:70}};
+const DEF={guru:{nama:'',nip:'',sekolah:'',npsn:'',kelas:'',tahun:'2026/2027',semester:'Ganjil',kepsek:'',nipKepsek:''},siswa:[],mapel:[],rpp:[],asesmen:[],jadwal:[],absensi:{},nilai:[],jurnal:[],catatan:{},karakter:{},projek:[],kalender:[],tl:{},instrumen:[],dini:{},diff:[],bahan:[],stem:[],modul:[],arsip:[],rapor:{},perangkat:[],soal:[],setting:{api:'/api/generate',kktp:70}};
 let db=load();
 function load(){try{const s=JSON.parse(localStorage.getItem(KEY)||'{}');return Object.assign(structuredClone(DEF),s)}catch{return structuredClone(DEF)}}
 function save(){try{localStorage.setItem(KEY,JSON.stringify(db))}catch{toast('Penyimpanan penuh / diblokir browser')}schedAuto()}
@@ -2190,7 +2191,213 @@ view.addEventListener('change',e=>{const t=e.target;
   if(t.id==='srpp'&&stEdit)stPick(t.value);
   if(t.id==='stc'||t.id==='stf'){const fs=[...t.files];t.value='';stRead(fs)}});
 PAGES.stem=defs.stem;
-{const tmp={...PAGES};Object.keys(PAGES).forEach(k=>delete PAGES[k]);['dashboard','asisten','dini','guru','impor','siswa','mapel','kalender','rpp','diff','perangkat','stem','soal','bahan','instrumen','asesmen','jadwal','absensi','absrekap','nilai','nilaicepat','koreksi','leger','tl','catcepat','karakter','rapor','kartu','jurnal','surat','kinerja','rekap','excel','wali','tahun','setting'].forEach(k=>{if(tmp[k])PAGES[k]=tmp[k]})}
+/* ================= MODUL AJAR MENDALAM (format Pembelajaran Mendalam: Identifikasi, Desain, Langkah per pertemuan, Asesmen, Lampiran, LKM) ================= */
+const MDPL=['Keimanan & Ketakwaan','Kewargaan','Bernalar Kritis','Kreatif','Kolaborasi','Mandiri','Kesehatan','Komunikasi'];
+const MDL={
+  pbl:{k:'PBL',n:'Problem Based Learning (PBL)',s:['Orientasi masalah','Mengorganisasikan siswa','Membimbing penyelidikan','Mengembangkan dan menyajikan hasil','Menganalisis dan mengevaluasi'],t:['MEMAHAMI','MEMAHAMI','MENGAPLIKASIKAN','MENGAPLIKASIKAN','MEREFLEKSI']},
+  pjbl:{k:'PjBL',n:'Project Based Learning (PjBL)',s:['Penentuan pertanyaan mendasar','Mendesain perencanaan proyek','Menyusun jadwal','Memonitor pelaksanaan proyek','Menguji hasil','Mengevaluasi pengalaman'],t:['MEMAHAMI','MEMAHAMI','MENGAPLIKASIKAN','MENGAPLIKASIKAN','MENGAPLIKASIKAN','MEREFLEKSI']},
+  dl:{k:'DL',n:'Discovery Learning',s:['Stimulasi','Identifikasi masalah','Pengumpulan data','Pengolahan data','Pembuktian','Menarik kesimpulan'],t:['MEMAHAMI','MEMAHAMI','MENGAPLIKASIKAN','MENGAPLIKASIKAN','MEREFLEKSI','MEREFLEKSI']},
+  ink:{k:'Inkuiri',n:'Inkuiri Terbimbing',s:['Orientasi','Merumuskan masalah','Mengajukan hipotesis','Mengumpulkan data','Menguji hipotesis dan menyimpulkan'],t:['MEMAHAMI','MEMAHAMI','MENGAPLIKASIKAN','MENGAPLIKASIKAN','MEREFLEKSI']},
+  cl:{k:'CL',n:'Cooperative Learning',s:['Penyampaian tujuan dan motivasi','Penyajian informasi','Pengorganisasian kelompok belajar','Bimbingan kerja kelompok','Evaluasi dan presentasi hasil','Pemberian penghargaan'],t:['MEMAHAMI','MEMAHAMI','MENGAPLIKASIKAN','MENGAPLIKASIKAN','MEREFLEKSI','MEREFLEKSI']}
+};
+let mdEdit=null,mdSrcList=[],mdTmr=null;
+const blankMd=()=>({id:null,rppId:'',mapel:'',kelas:db.guru.kelas||'3',semester:db.guru.semester==='Genap'?'2 (Genap)':'1 (Ganjil)',tahun:(db.guru.tahun||'').replace('/',' – '),bab:'',topik:'',pertemuan:4,jp:3,menit:35,tpTeks:'',model:'pbl',catatan:'',sumber:'',data:null,html:null,updated:''});
+const mdL=(x,n)=>asArr(x).map(a=>cl(norm(a))).filter(Boolean).slice(0,n);
+const mdN=d=>Math.max(1,Math.min(12,Math.round(+d.pertemuan)||4));
+const mdJp=d=>Math.max(1,Math.min(6,Math.round(+d.jp)||3));
+const mdMenit=d=>{const t=mdJp(d)*(Math.max(20,Math.min(60,+d.menit||35))),a=Math.max(5,Math.round(t/7/5)*5),k=Math.max(5,Math.round(t/10.5/5)*5);return{total:t,awal:a,akhir:k,inti:t-a-k}};
+const mdTpOf=(D,i)=>{const t=D.tp.findIndex(x=>i>=x.a&&i<=x.b);return t<0?0:t};
+function mdFixTp(tp,n){
+  tp=tp.filter(x=>x.rumusan).slice(0,Math.min(n,6));if(!tp.length)return tp;
+  let ok=true,cur=1;
+  tp.forEach(x=>{const m=String(x.pertemuan).match(/(\d+)\D*(\d+)?/);if(!m){ok=false;return}const a=+m[1],b=+(m[2]||m[1]);if(a!==cur||b<a)ok=false;x.a=a;x.b=b;cur=b+1});
+  if(!ok||cur-1!==n){let s=1;tp.forEach((x,i)=>{const left=tp.length-i,len=Math.max(1,Math.round((n-s+1)/left));x.a=s;x.b=i===tp.length-1?n:Math.min(n,s+len-1);s=x.b+1})}
+  tp.forEach(x=>{x.pertemuan=x.a===x.b?String(x.a):x.a+'–'+x.b});return tp
+}
+function mdNorm1(r,n){
+  const a=x=>cl(norm(x)),M=r&&r.materi||{},K=r&&r.kemitraan||{},L=r&&r.lingkungan||{};
+  const o={pa:a(r&&r.pengetahuan_awal),minat:a(r&&r.minat),kebutuhan:a(r&&r.kebutuhan),materi:{faktual:a(M.faktual),konseptual:a(M.konseptual),prosedural:a(M.prosedural),metakognitif:a(M.metakognitif)},
+    dpl:asArr(r&&r.dpl).map(x=>({nama:a(x&&x.nama),deskripsi:a(x&&x.deskripsi)})).filter(x=>x.nama).slice(0,6),
+    tp:mdFixTp(asArr(r&&r.tp).map(x=>({pertemuan:a(x&&x.pertemuan),rumusan:a(x&&x.rumusan)})),n),
+    lintas:mdL(r&&r.lintas,4),judul:a(r&&r.judul_topik),metode:a(r&&r.metode),gs:a(K.guru_siswa),ss:a(K.siswa_siswa),fisik:a(L.fisik),sosial:a(L.sosial),psiko:a(L.psikologis),digital:mdL(r&&r.digital,5)};
+  if(!o.tp.length||!o.materi.konseptual)throw new Error('kosong');return o
+}
+function mdNormP(r,no,d,D){
+  const a=x=>cl(norm(x)),M=MDL[d.model]||MDL.pbl,A=r&&r.asesmen||{},K=r&&r.lkm||{};
+  const inti=asArr(r&&r.inti).map(a).filter(Boolean);if(inti.length<M.s.length-1||!(r&&r.tujuan_khusus))throw new Error('kosong');
+  const L=mdLocalMeet(d,D,no);
+  return{no,s:'ai',tujuan_khusus:a(r.tujuan_khusus),awal:mdL(r.awal,7).length>=3?mdL(r.awal,7):L.awal,
+    inti:M.s.map((s,i)=>({tahap:M.t[i],sintaks:s,isi:inti[i]||L.inti[i].isi})),akhir:mdL(r.akhir,7).length>=3?mdL(r.akhir,7):L.akhir,
+    asesmen:{awal:a(A.awal)||L.asesmen.awal,proses:a(A.proses)||L.asesmen.proses,akhir:a(A.akhir)||L.asesmen.akhir},
+    lkm:{judul:a(K.judul)||L.lkm.judul,instruksi:a(K.instruksi)||L.lkm.instruksi,isi:mdL(K.isi,8).length?mdL(K.isi,8):L.lkm.isi,refleksi:a(K.refleksi)||L.lkm.refleksi}}
+}
+const mdRub=x=>asArr(x).map(k=>({aspek:cl(norm(k&&k.aspek)),l4:cl(norm(k&&k.l4)),l3:cl(norm(k&&k.l3)),l2:cl(norm(k&&k.l2)),l1:cl(norm(k&&k.l1))})).filter(k=>k.aspek).slice(0,6);
+function mdNorm3(r){
+  const a=x=>cl(norm(x)),o={soal_awal:asArr(r&&r.soal_awal).map(x=>({q:a(x&&x.q),a:a(x&&x.a)})).filter(x=>x.q).slice(0,6),
+    soal_formatif:asArr(r&&r.soal_formatif).map(x=>({tp:a(x&&x.tp),q:a(x&&x.q)})).filter(x=>x.q).slice(0,8),media:mdL(r&&r.media,12)};
+  if(!o.soal_awal.length||!o.soal_formatif.length)throw new Error('kosong');
+  if(!o.media.length)o.media=['Lembar Kerja Murid (LKM) per pertemuan','Papan tulis dan spidol','Kertas dan alat tulis'];return o
+}
+function mdNorm4(r){
+  const o={ringkasan:asArr(r&&r.ringkasan).map(x=>({judul:cl(norm(x&&x.judul)),isi:cl(norm(x&&x.isi))})).filter(x=>x.judul&&x.isi).slice(0,7),
+    sikap:mdRub(r&&r.rubrik_sikap),pengetahuan:mdRub(r&&r.rubrik_pengetahuan),keterampilan:mdRub(r&&r.rubrik_keterampilan)};
+  if(!o.ringkasan.length||!o.sikap.length||!o.pengetahuan.length||!o.keterampilan.length)throw new Error('kosong');return o
+}
+/* ---- template lokal (tanpa AI) ---- */
+function mdLocalMeet(d,D,no){
+  const M=MDL[d.model]||MDL.pbl,t=D.tp[mdTpOf(D,no)]||{rumusan:d.topik},top=d.topik||d.bab||d.mapel,tk=`Peserta didik mampu mempelajari bagian ${no} dari ${top} sesuai tujuan: ${String(t.rumusan).replace(/^Peserta didik mampu\s*/i,'')}`;
+  const T={MEMAHAMI:`Guru menyajikan stimulus (gambar/benda/cerita) yang berkaitan dengan ${top}. Peserta didik mengamati, bertanya, dan menyampaikan pendapat. (Bernalar Kritis)`,
+    MENGAPLIKASIKAN:`Peserta didik bekerja berkelompok atau berpasangan mengerjakan LKM ${no} yang berkaitan dengan ${top}; guru berkeliling membimbing dan mengajukan pertanyaan pancingan. (Kolaborasi, Mandiri)`,
+    MEREFLEKSI:`Peserta didik mempresentasikan hasil kerja, saling memberi tanggapan, dan guru memberi penguatan serta meluruskan miskonsepsi. (Komunikasi, Berkesadaran)`};
+  return{no,s:'lokal',tujuan_khusus:tk,
+    awal:['Guru mengucapkan salam dan mengajak peserta didik berdoa bersama. (Berkesadaran)','Guru memeriksa kehadiran dan menanyakan kabar peserta didik.',`Apersepsi: Guru mengajukan pertanyaan pemantik yang berkaitan dengan ${top} dan pengalaman sehari-hari peserta didik. (Bermakna)`,'Motivasi: Guru menyampaikan bahwa pembelajaran hari ini dilakukan dengan kegiatan yang seru dan menantang. (Menggembirakan)','Guru menyampaikan tujuan pembelajaran hari ini.'],
+    inti:M.s.map((s,i)=>({tahap:M.t[i],sintaks:s,isi:T[M.t[i]]})),
+    akhir:['Guru bersama peserta didik menyimpulkan pembelajaran hari ini. (Berkesadaran)','Refleksi: Peserta didik menuliskan satu hal yang dipelajari dan satu hal yang masih sulit. (Bermakna)','Guru memberikan umpan balik positif atas partisipasi peserta didik.','Guru menyampaikan informasi pertemuan berikutnya.','Pembelajaran ditutup dengan doa dan salam.'],
+    asesmen:{awal:`Tanya jawab lisan tentang pengetahuan awal peserta didik mengenai ${top} (diagnostik).`,proses:'Observasi partisipasi, kerja sama, dan kemandirian selama kegiatan; hasil kerja pada LKM.',akhir:'Hasil LKM dan presentasi/jawaban peserta didik dinilai dengan rubrik; target ketepatan minimal 80%.'},
+    lkm:{judul:`LKM ${no} – ${top}`,instruksi:`Kerjakan tugas berikut sesuai arahan guru. Tulis jawabanmu dengan rapi.`,isi:['Tuliskan apa yang kamu ketahui tentang topik hari ini.','Kerjakan tugas yang diberikan guru pada kolom di bawah ini.','Tuliskan hasil pengamatan/jawabanmu.'],refleksi:'Hal yang sudah aku pahami: ________________. Hal yang masih perlu aku pelajari: ________________.'}}
+}
+function mdLocal(d){
+  const n=mdN(d),top=d.topik||d.bab||d.mapel||'topik',M=MDL[d.model]||MDL.pbl;
+  let lines=String(d.tpTeks||'').split('\n').map(x=>cl(x)).filter(Boolean).slice(0,6),k=Math.min(n,Math.max(1,lines.length||Math.min(4,n)));
+  const tp=[];for(let i=0;i<k;i++)tp.push({pertemuan:'',rumusan:lines[i]?(/^peserta didik/i.test(lines[i])?lines[i]:'Peserta didik mampu '+lines[i].replace(/^[a-z]/,c=>c.toLowerCase())):`Peserta didik mampu memahami dan menerapkan bagian ${i+1} dari ${top} dengan benar.`});
+  const D={s1:'lokal',pa:`Peserta didik kelas ${d.kelas} umumnya sudah memiliki pengalaman sehari-hari yang berkaitan dengan ${top} dan dapat dijadikan pijakan belajar.`,minat:'Peserta didik pada usia ini senang bermain, bercerita, dan beraktivitas bersama teman. Kegiatan kelompok dan permainan sangat diminati.',kebutuhan:'Peserta didik membutuhkan stimulus visual atau benda konkret, pendampingan dalam memahami konsep, serta kesempatan menyampaikan pendapat di depan teman.',
+    materi:{faktual:`Fakta dan contoh nyata yang berkaitan dengan ${top}.`,konseptual:`Konsep-konsep utama pada ${top}.`,prosedural:`Langkah-langkah menyelesaikan tugas pada ${top}.`,metakognitif:'Peserta didik merefleksi proses belajarnya: apa yang sudah dipahami dan apa yang masih sulit.'},
+    dpl:[{nama:'Bernalar Kritis',deskripsi:'mengamati, menganalisis, dan menarik kesimpulan'},{nama:'Kolaborasi',deskripsi:'bekerja sama dalam kelompok'},{nama:'Mandiri',deskripsi:'mengerjakan tugas dan memeriksa pekerjaan sendiri'},{nama:'Komunikasi',deskripsi:'menyampaikan gagasan dengan jelas dan santun'}],
+    tp,lintas:[`${d.mapel||'Mata pelajaran'} × Seni Budaya – kegiatan berkarya mengembangkan kepekaan visual dan kreativitas.`,`${d.mapel||'Mata pelajaran'} × PPKn – nilai santun dan kerja sama mencerminkan karakter Pancasila.`],judul:d.bab||top,metode:'Pengamatan, Diskusi Kelompok, Permainan Edukatif, Demonstrasi, Tanya Jawab',
+    gs:'Guru berperan sebagai fasilitator yang membimbing peserta didik menemukan pemahaman sendiri.',ss:'Kerja kelompok dan berpasangan untuk saling membantu, memeriksa pekerjaan, dan melatih berbicara.',
+    fisik:'Kelas tertata rapi, papan tulis, sudut pajang karya, dan meja kelompok.',sosial:'Suasana kolaboratif dan saling menghargai antarpeserta didik.',psiko:'Iklim kelas yang aman, menyenangkan, dan bebas dari rasa takut salah.',digital:['Tayangan gambar/video singkat melalui proyektor atau layar TV bila tersedia.','Lembar kerja digital (opsional) atau LKM cetak.'],
+    pertemuan:[],l3:{s:'lokal',soal_awal:[{q:`Tuliskan satu hal yang kamu ketahui tentang ${top}.`,a:'Jawaban bervariasi sesuai pengetahuan awal peserta didik (kebijaksanaan guru).'},{q:`Sebutkan satu contoh ${top} yang ada di sekitarmu.`,a:'Jawaban bervariasi sesuai pengalaman peserta didik.'},{q:'Ceritakan dengan kalimatmu sendiri apa yang ingin kamu pelajari pada bab ini.',a:'Jawaban bervariasi (kebijaksanaan guru).'}],
+      soal_formatif:tp.map((x,i)=>({tp:'TP '+(i+1),q:`Kerjakan tugas yang menunjukkan bahwa kamu mencapai tujuan: ${x.rumusan.replace(/^Peserta didik mampu\s*/i,'')}`})),
+      media:['Kartu gambar/benda konkret yang berkaitan dengan topik','Lembar Kerja Murid (LKM) per pertemuan (Lampiran 6)','Papan tulis dan spidol','Kertas, gunting, dan lem','Proyektor/Layar TV (opsional)','Stiker bintang atau kartu penghargaan']},
+    l4:{s:'lokal',ringkasan:[{judul:top,isi:`Ringkasan materi ${top} disusun guru sesuai buku yang digunakan. Tekan tombol “Susun dengan AI” saat terhubung untuk mendapat ringkasan otomatis.`}],
+      sikap:[{aspek:'Bernalar Kritis',l4:'Menganalisis dengan alasan yang tepat dan lengkap',l3:'Menganalisis dengan alasan yang cukup tepat',l2:'Menganalisis namun alasan belum konsisten',l1:'Belum mampu menganalisis dengan alasan yang tepat'},{aspek:'Mandiri',l4:'Mengerjakan seluruh tugas sendiri tanpa bantuan',l3:'Mengerjakan sebagian besar tugas dengan sedikit bantuan',l2:'Mengerjakan tugas dengan bantuan cukup banyak',l1:'Belum mampu mengerjakan tugas secara mandiri'},{aspek:'Kolaborasi',l4:'Aktif bekerja sama dan membantu teman',l3:'Bekerja sama dengan baik',l2:'Bekerja sama bila diarahkan',l1:'Belum mau bekerja sama'},{aspek:'Komunikasi',l4:'Berbicara jelas, santun, dan percaya diri',l3:'Berbicara cukup jelas dan santun',l2:'Berbicara kurang jelas atau kurang santun',l1:'Belum mau/mampu berbicara di depan teman'}],
+      pengetahuan:[{aspek:'Pemahaman konsep',l4:'Seluruh jawaban benar dan lengkap',l3:'Sebagian besar jawaban benar (4/5)',l2:'Sebagian jawaban benar (2–3/5)',l1:'Banyak jawaban belum benar'},{aspek:'Penerapan konsep',l4:'Menerapkan konsep dengan tepat pada semua tugas',l3:'Menerapkan konsep pada sebagian besar tugas',l2:'Menerapkan konsep dengan bantuan',l1:'Belum mampu menerapkan konsep'},{aspek:'Penjelasan',l4:'Menjelaskan runtut dan lengkap',l3:'Menjelaskan cukup runtut',l2:'Menjelaskan kurang runtut',l1:'Belum mampu menjelaskan'}],
+      keterampilan:[{aspek:'Proses mengerjakan tugas',l4:'Mengikuti semua langkah dengan tepat dan mandiri',l3:'Mengikuti sebagian besar langkah dengan tepat',l2:'Mengikuti beberapa langkah dengan bantuan',l1:'Belum mampu mengikuti langkah'},{aspek:'Hasil karya',l4:'Hasil karya rapi, tepat, dan kreatif',l3:'Hasil karya rapi dan tepat',l2:'Hasil karya cukup tepat',l1:'Hasil karya belum tepat'},{aspek:'Presentasi / unjuk kerja',l4:'Menyampaikan dengan jelas dan percaya diri',l3:'Menyampaikan cukup jelas',l2:'Menyampaikan kurang jelas',l1:'Belum mampu menyampaikan'}]}};
+  D.tp.forEach(x=>x.rumusan=cl(x.rumusan));mdFixTp(D.tp,n);
+  for(let i=1;i<=n;i++)D.pertemuan.push(mdLocalMeet(d,D,i));return D
+}
+/* ---- tampilan ---- */
+const br=x=>esc(x).replace(/\n/g,'<br>'),mdSig=()=>{const g=db.guru;return `<table style="border:0;margin-top:24px;width:100%"><tr><td style="border:0;width:50%;text-align:center">Mengetahui,<br>Kepala Sekolah<br><br><br><br><b><u>${esc(g.kepsek||'................................')}</u></b><br>NIP. ${esc(g.nipKepsek||'................................')}</td><td style="border:0;text-align:center">${'................., '+fmtD(today())}<br>Guru Kelas ${esc(g.kelas||'')}<br><br><br><br><b><u>${esc(g.nama||'................................')}</u></b><br>NIP. ${esc(g.nip||'................................')}</td></tr></table>`};
+function mdSecs(d){
+  const D=d.data;if(!D)return{modul:'',lampiran:'',lkm:''};
+  const n=mdN(d),jp=mdJp(d),mn=mdMenit(d),M=MDL[d.model]||MDL.pbl,g=db.guru,top=d.bab||d.topik;
+  const kv=(k,v)=>`<tr><td style="width:30%"><b>${k}</b></td><td>${v}</td></tr>`,band=(t)=>`<tr><td colspan="2" style="background:#e8e4ff"><b>${t}</b></td></tr>`;
+  const ul=a=>a.map(x=>`<li>${esc(x)}</li>`).join(''),ol=a=>`<ol style="margin:0 0 0 18px;padding:0">${ul(a)}</ol>`;
+  let m=`<h2 style="text-align:center;margin:4px 0">MODUL AJAR ${esc(String(d.mapel).toUpperCase())}</h2><p style="text-align:center;margin:2px 0 10px">Pendekatan Pembelajaran Mendalam (Deep Learning)</p>`
+   +`<table>${kv('Mata Pelajaran',esc(d.mapel))}${kv('Kelas / Fase',`${esc(d.kelas)} / Fase ${esc(faseOf(d.kelas))}`)}${kv('Semester',esc(d.semester))}${kv('Tahun Pelajaran',esc(d.tahun))}${kv('Bab / Topik',esc(top))}${kv('Alokasi Waktu',`${n*jp} JP / ${n} Pertemuan`)}</table>`
+   +`<p style="text-align:center"><b>${esc(g.sekolah||'NAMA SEKOLAH')}</b><br>Tahun Pelajaran ${esc(d.tahun)}</p>`
+   +`<h3>I. IDENTIFIKASI MODUL AJAR</h3><table>${band('Identitas Umum')}${kv('Nama Sekolah',esc(g.sekolah||'................'))}${kv('Mata Pelajaran',esc(d.mapel))}${kv('Kelas / Fase',`Kelas ${esc(d.kelas)} / Fase ${esc(faseOf(d.kelas))}`)}${kv('Semester / TP',`Semester ${esc(d.semester)} / Tahun Pelajaran ${esc(d.tahun)}`)}${kv('Bab / Topik',esc(top))}${kv('Alokasi Waktu',`${n*jp} JP (${n} Pertemuan × ${jp} JP × ${esc(d.menit||35)} menit)`)}`
+   +`${band('Peserta Didik')}<tr><td colspan="2"><b>1. Pengetahuan Awal</b><br>${br(D.pa)}<br><b>2. Minat Belajar</b><br>${br(D.minat)}<br><b>3. Kebutuhan Belajar</b><br>${br(D.kebutuhan)}</td></tr>`
+   +`${band('Materi Pembelajaran')}<tr><td colspan="2"><b>Faktual:</b> ${br(D.materi.faktual)}<br><b>Konseptual:</b> ${br(D.materi.konseptual)}<br><b>Prosedural:</b> ${br(D.materi.prosedural)}<br><b>Metakognitif:</b> ${br(D.materi.metakognitif)}</td></tr>`
+   +`${band('Profil Lulusan (DPL)')}<tr><td colspan="2">${D.dpl.map(x=>`<b>${esc(x.nama)}</b>${x.deskripsi?' – '+esc(x.deskripsi):''}`).join('<br>')}</td></tr></table>`
+   +`<h3>II. DESAIN PEMBELAJARAN</h3><p><b>Tujuan Pembelajaran (TP)</b></p>`+dtab(['Kode TP','Rumusan Tujuan Pembelajaran'],D.tp.map((x,i)=>[`TP ${i+1} (Pertemuan ${x.pertemuan})`,`${x.rumusan} (${(x.b-x.a+1)*jp} JP)`]))
+   +`<p style="margin-top:8px"><b>Desain Umum Pembelajaran</b></p><table>${kv('Lintas Disiplin Ilmu',D.lintas.map(esc).join('<br>')||'-')}${kv('Topik Pembelajaran',esc(D.judul||top))}`
+   +`${kv('Praktik Pedagogis',`Pendekatan: Pembelajaran Mendalam (Deep Learning) – berkesadaran (mindful), bermakna (meaningful), menggembirakan (joyful)<br>Model: ${esc(M.n)}<br>Sintaks: ${M.s.map((s,i)=>`(${i+1}) ${esc(s)}`).join(' → ')}<br>Metode: ${esc(D.metode)}`)}`
+   +`${kv('Kemitraan Pembelajaran',`Guru dengan Siswa: ${esc(D.gs)}<br>Siswa dengan Siswa: ${esc(D.ss)}`)}${kv('Lingkungan Belajar',`Fisik: ${esc(D.fisik)}<br>Sosial: ${esc(D.sosial)}<br>Psikologis: ${esc(D.psiko)}`)}${kv('Pemanfaatan Digital',D.digital.map(esc).join('<br>')||'-')}</table>`;
+  D.pertemuan.forEach((p,i)=>{const ti=mdTpOf(D,p.no);
+    m+=`<div class="pb"></div><h3>III. LANGKAH-LANGKAH PEMBELAJARAN – PERTEMUAN ${p.no}</h3><table><tr><td><b>Pertemuan ke- ${p.no} dari ${n} pertemuan</b></td><td>Tujuan Pembelajaran: TP ${ti+1}</td></tr><tr><td>Alokasi Waktu: ${jp} JP (${mn.total} menit)</td><td>Tujuan Khusus: ${esc(p.tujuan_khusus)}</td></tr></table>`
+     +`<table>${band(`KEGIATAN AWAL (${mn.awal} menit)`)}<tr><td colspan="2">${ol(p.awal)}</td></tr>${band(`KEGIATAN INTI (${mn.inti} menit)`)}<tr><td colspan="2">${ol(p.inti.map((x,j)=>`${x.tahap} – ${x.sintaks} (${M.k} Sintaks ${j+1}): ${x.isi}`))}</td></tr>${band(`KEGIATAN AKHIR (${mn.akhir} menit)`)}<tr><td colspan="2">${ol(p.akhir)}</td></tr></table>`
+     +`<h3>IV. ASESMEN PEMBELAJARAN</h3><table>${kv('Asesmen Awal',esc(p.asesmen.awal))}${kv('Asesmen Proses',esc(p.asesmen.proses))}${kv('Asesmen Akhir',esc(p.asesmen.akhir))}</table>`});
+  const rub=(t,a)=>`<p style="margin-top:8px"><b>${t}</b></p>`+dtab(['Aspek','Sangat Baik (4)','Baik (3)','Cukup (2)','Perlu Bimbingan (1)'],a.map(x=>[x.aspek,x.l4,x.l3,x.l2,x.l1]));
+  const L3=D.l3,L4=D.l4;
+  const lamp=`<h3 style="text-align:center">LAMPIRAN MODUL AJAR – ${esc(String(top).toUpperCase())}</h3><p><b>Lampiran 1 – Soal Asesmen Awal (${L3.soal_awal.length} Soal + Jawaban)</b></p>`+L3.soal_awal.map((x,i)=>`<p>${i+1}. ${br(x.q)}<br><i>Jawaban: ${br(x.a)}</i></p>`).join('')
+   +`<p><b>Lampiran 2 – Ringkasan Materi (Bahan Ajar)</b></p>`+L4.ringkasan.map(x=>`<p><b>${esc(x.judul)}</b><br>${br(x.isi)}</p>`).join('')
+   +`<p><b>Lampiran 3 – Media Pembelajaran</b></p><ul style="margin:0 0 0 18px;padding:0">${ul(L3.media)}</ul>`
+   +`<p><b>Lampiran 4 – Soal Asesmen Formatif</b></p><ol style="margin:0 0 0 18px;padding:0">${L3.soal_formatif.map(x=>`<li>${x.tp?'['+esc(x.tp)+'] ':''}${br(x.q)}</li>`).join('')}</ol>`
+   +`<p style="margin-top:8px"><b>Lampiran 5 – Rubrik Penilaian (4 Skala)</b></p>`+rub('5a. Rubrik Sikap – Dimensi Profil Lulusan',L4.sikap)+rub('5b. Rubrik Pengetahuan',L4.pengetahuan)+rub('5c. Rubrik Keterampilan',L4.keterampilan);
+  const lkm=`<h3 style="text-align:center">Lampiran 6 – Lembar Kerja Murid (LKM) per Pertemuan</h3>`+D.pertemuan.map((p,i)=>{const k=p.lkm,ti=mdTpOf(D,p.no);
+    return `<div style="margin-bottom:14px;${i?'page-break-before:always':''}"><table>${band(esc(k.judul))}<tr><td colspan="2">Kelas/Semester: ${esc(d.kelas)}/${esc(String(d.semester).charAt(0))} &nbsp;|&nbsp; TP: TP ${ti+1} &nbsp;|&nbsp; Nama: ___________________________ &nbsp;|&nbsp; Tanggal: __________</td></tr><tr><td colspan="2"><b>Instruksi:</b><br>${br(k.instruksi)}<br><br>${k.isi.map(x=>'• '+esc(x)+'<br><br>').join('')}<br><b>Refleksi:</b> ${br(k.refleksi)}</td></tr></table></div>`}).join('');
+  return{modul:m,lampiran:lamp,lkm}
+}
+const mdCss=`<style>body{font-family:Arial,sans-serif;font-size:11pt}table{border-collapse:collapse;width:100%;margin:4px 0}td,th{border:1px solid #000;padding:4px 6px;vertical-align:top;text-align:left}th{background:#e8e4ff}h3{margin:12px 0 4px}</style>`;
+const mdSec=(d,k)=>(d.html&&d.html[k])||mdSecs(d)[k];
+const mdHtml=(d,part)=>{const S=part==='semua'?['modul','lampiran','lkm']:[part];return S.map((k,i)=>(i?'<div class="pb"></div>':'')+mdSec(d,k)).join('')+mdSig()};
+function mdClean(h){const t=document.createElement('template');t.innerHTML=h;t.content.querySelectorAll('script,iframe,object,embed,style,link').forEach(e=>e.remove());t.content.querySelectorAll('*').forEach(e=>[...e.attributes].forEach(a=>{if(/^on/i.test(a.name)||/^javascript:/i.test(a.value))e.removeAttribute(a.name)}));return t.innerHTML}
+function mdPage(v){
+  if(!mdEdit){
+    v.innerHTML=`<div class="wrap"><div class="hero tilt"><div><h2>Modul Ajar Mendalam</h2><p>RPP/Modul Ajar format Pembelajaran Mendalam lengkap: identifikasi, desain, langkah per pertemuan, asesmen, lampiran, rubrik, dan LKM. Bisa dari foto/berkas materi, disusun AI, lalu diunduh ke Word atau dicetak.</p><button class="btn a" data-act="mdNew">✨ Buat Baru</button></div></div>
+    ${db.modul.length?[...db.modul].reverse().map(r=>`<div class="card tilt item"><div class="ib">📘</div><div class="im"><b>${esc(r.mapel)} — ${esc(r.bab||r.topik)}</b><small>Kelas ${esc(r.kelas)} • ${esc(r.pertemuan)} pertemuan • ${fmtD(r.updated)}</small></div><div class="ia"><button class="btn s g" data-act="mdOpen" data-id="${r.id}">Buka</button><button class="btn s r" data-act="mdDel" data-id="${r.id}" aria-label="Hapus">🗑</button></div></div>`).join(''):'<div class="card empty"><b>📘</b>Belum ada. Tekan “Buat Baru”.</div>'}</div>`;return}
+  const d=mdEdit,lokal=d.data?mdLokalCount(d):0;
+  v.innerHTML=`<div class="wrap"><div class="card"><div class="row" style="justify-content:space-between"><h3>Susun Modul Ajar</h3><button class="btn s g" data-act="mdBack">← Kembali</button></div>
+  <label>Ambil dari RPP (opsional)</label><select id="mrpp"><option value="">— tanpa RPP —</option>${db.rpp.map(r=>`<option value="${r.id}" ${r.id===d.rppId?'selected':''}>${esc(r.mapel)} — ${esc(r.topik)}</option>`).join('')}</select>
+  <label>Mata Pelajaran</label><input data-md="mapel" value="${esc(d.mapel)}" placeholder="mis. Bahasa Indonesia">
+  <div class="g2"><div><label>Kelas</label><select data-md="kelas">${KELAS.map(k=>`<option ${k==d.kelas?'selected':''}>${k}</option>`).join('')}</select></div><div><label>Semester</label><select data-md="semester">${['1 (Ganjil)','2 (Genap)'].map(s=>`<option ${s===d.semester?'selected':''}>${s}</option>`).join('')}</select></div></div>
+  <label>Tahun Pelajaran</label><input data-md="tahun" value="${esc(d.tahun)}">
+  <label>Bab / Judul</label><input data-md="bab" value="${esc(d.bab)}" placeholder="mis. Bab 1 – Ayo Main!">
+  <label>Topik / materi pokok</label><textarea data-md="topik" style="min-height:60px" placeholder="mis. Mengelompokkan benda, kaidah huruf kapital dan tanda baca, berbicara santun">${esc(d.topik)}</textarea>
+  <div class="g2"><div><label>Jumlah pertemuan</label><input type="number" min="1" max="12" data-md="pertemuan" value="${esc(d.pertemuan)}"></div><div><label>JP per pertemuan</label><input type="number" min="1" max="6" data-md="jp" value="${esc(d.jp)}"></div></div>
+  <label>Menit per JP</label><input type="number" min="20" max="60" data-md="menit" value="${esc(d.menit)}">
+  <label>Tujuan pembelajaran (opsional, satu per baris — kosongkan agar AI yang menyusun)</label><textarea data-md="tpTeks" style="min-height:70px">${esc(d.tpTeks)}</textarea>
+  <label>Model pembelajaran</label><select data-md="model">${Object.keys(MDL).map(k=>`<option value="${k}" ${k===d.model?'selected':''}>${MDL[k].n}</option>`).join('')}</select>
+  <label>Catatan / kondisi kelas (opsional)</label><input data-md="catatan" value="${esc(d.catatan)}" placeholder="mis. tanpa proyektor, 28 siswa">
+  <label>Materi dari buku / berkas (opsional)</label><div class="row"><button type="button" class="btn s a" data-act="mdCam">📷 Foto Halaman</button><button type="button" class="btn s g" data-act="mdUp">📎 Unggah Berkas</button></div>
+  <div>${mdSrcList.map(x=>`<div class="mut" style="font-size:13px;margin-top:4px">${esc(x.name)} — ${esc(x.st)}</div>`).join('')}</div><input type="file" id="mdc" accept="image/*" capture="environment" hidden><input type="file" id="mdf" accept="image/*,.pdf,.docx,.txt" multiple hidden>
+  <textarea data-md="sumber" style="min-height:60px;margin-top:8px" placeholder="Teks materi / CP / ATP dari foto atau berkas muncul di sini (boleh diketik atau ditempel)">${esc(d.sumber)}</textarea>
+  <div class="row" style="margin-top:14px"><button class="btn a" data-act="mdAI">✨ Susun Modul dengan AI</button>${lokal&&d.data?`<button class="btn s" data-act="mdLagi">🔁 Coba lagi ${lokal} bagian berisi template</button>`:''}</div><div id="mdProg" class="mut" style="margin-top:8px;font-size:13px"></div></div>
+  ${d.data?`<div class="card"><h3>Hasil</h3><p class="mut" style="font-size:13px">Ketuk teks di bawah untuk mengedit langsung. ${lokal?`<b>${lokal} bagian masih template umum</b> (AI belum menjawab) — periksa atau coba lagi.`:'Semua bagian disusun AI — mohon diperiksa.'}</p>
+  <div class="row" style="margin:10px 0"><button class="btn t" data-act="mdSave">💾 Simpan</button><button class="btn" data-act="mdPrint" data-p="semua">🖨 Cetak / PDF</button><button class="btn a" data-act="mdDoc">⬇ Unduh Word</button></div>
+  <div class="row" style="margin-bottom:10px"><button class="btn s" data-act="mdPrint" data-p="modul">Modul</button><button class="btn s" data-act="mdPrint" data-p="lampiran">Lampiran</button><button class="btn s" data-act="mdPrint" data-p="lkm">LKM</button>${d.html?'<button class="btn s r" data-act="mdReset">↩ Kembalikan hasil asli</button>':''}</div>
+  ${['modul','lampiran','lkm'].map(k=>`<div class="tbl mdprev" data-sec="${k}" contenteditable="true" style="border:1px dashed #c9c2ff;border-radius:12px;padding:8px;margin-bottom:12px">${mdSec(d,k)}</div>`).join('')}</div>`:''}</div>`;
+  v.querySelectorAll('textarea[data-md]').forEach(grow)}
+function mdLokalCount(d){const D=d.data;if(!D)return 0;return(D.s1!=='ai'?1:0)+D.pertemuan.filter(p=>p.s!=='ai').length+(D.l3.s!=='ai'?1:0)+(D.l4.s!=='ai'?1:0)}
+defs.modul={label:'Modul Ajar Mendalam',icon:'📘',render:mdPage};
+function mdPick(id){const r=db.rpp.find(x=>x.id===id),d=mdEdit;d.rppId=id;if(r){d.mapel=r.mapel||d.mapel;d.kelas=r.kelas||d.kelas;d.topik=r.topik||d.topik;if(r.tp&&!d.tpTeks)d.tpTeks=String(r.tp).slice(0,600);if(!d.sumber&&r.sumber_teks)d.sumber=String(r.sumber_teks).slice(0,3000)}mdPage(view)}
+async function mdRead(files){
+  if(!mdEdit)return;mdSrcList=[];
+  for(const f of files){const it={name:f.name||'foto kamera',st:'⏳ Membaca…'};mdSrcList.push(it);mdPage(view);
+    try{const t=(await readSource(f)).trim();if(t){mdEdit.sumber=((mdEdit.sumber?mdEdit.sumber+'\n\n':'')+t).slice(0,9000);it.st=`✅ Terbaca (${t.length} huruf)`}else it.st='⚠ Tidak ada teks terbaca'}catch(e){it.st='⚠ '+String(e.message||e).slice(0,100)}
+    mdPage(view)}
+}
+async function mdRun(d,ulang){
+  const setP=t=>{const e=$('#mdProg');if(e)e.textContent=t},n=mdN(d),M=MDL[d.model]||MDL.pbl,mn=mdMenit(d);
+  d.pertemuan=n;d.jp=mdJp(d);
+  const base={mapel:d.mapel,kelas:d.kelas,fase:faseOf(d.kelas),semester:d.semester,tahun:d.tahun,bab:d.bab,topik:d.topik,pertemuan:n,jpPer:d.jp,menit:d.menit,model:M.n,sintaks:M.s,tpTeks:d.tpTeks,catatan:d.catatan,sumber_teks:(d.sumber||'').slice(0,3000),dplT:MDPL};
+  if(!ulang||!d.data){d.data=mdLocal(d);d.html=null}else if(d.html){d.html=null}
+  const D=d.data;let gagal=0;
+  if(D.s1!=='ai'){setP('⏳ Menyusun identitas, tujuan, dan desain…');
+    try{const sk=mdNorm1(await tugas('modul1',base,90000),n);Object.assign(D,sk,{s1:'ai'});
+      D.pertemuan=Array.from({length:n},(_,i)=>{const p=D.pertemuan[i];return p&&p.s==='ai'?p:mdLocalMeet(d,D,i+1)})}catch(e){gagal++;D.err=String(e&&e.message||e).slice(0,100)}}
+  const todo=D.pertemuan.filter(p=>p.s!=='ai').map(p=>p.no);let done=0;
+  const ringkasTp=D.tp.map((x,i)=>`TP ${i+1} (pertemuan ${x.pertemuan}): ${x.rumusan}`);
+  for(let k=0;k<todo.length;k+=3){
+    setP(`⏳ Menyusun langkah pembelajaran… ${done}/${todo.length} pertemuan`);
+    await Promise.all(todo.slice(k,k+3).map(async no=>{try{
+      const ti=mdTpOf(D,no),r=await tugas('modulp',{...base,no,total:n,tpIni:D.tp[ti]?D.tp[ti].rumusan:'',tpSemua:ringkasTp,menitAwal:mn.awal,menitInti:mn.inti,menitAkhir:mn.akhir,materi:D.materi.konseptual},90000);
+      D.pertemuan[no-1]=mdNormP(r,no,d,D)}catch(e){gagal++;D.err=String(e&&e.message||e).slice(0,100)}done++}));
+  }
+  const tpList=D.tp.map(x=>x.rumusan),lb={mapel:d.mapel,kelas:d.kelas,fase:faseOf(d.kelas),topik:d.topik||d.bab,tpSemua:tpList,materi:D.materi,model:M.n};
+  if(D.l3.s!=='ai'){setP('⏳ Menyusun soal dan media…');try{Object.assign(D.l3,mdNorm3(await tugas('modul3',lb,90000)),{s:'ai'})}catch(e){gagal++;D.err=String(e&&e.message||e).slice(0,100)}}
+  if(D.l4.s!=='ai'){setP('⏳ Menyusun ringkasan materi dan rubrik…');try{Object.assign(D.l4,mdNorm4(await tugas('modul4',lb,90000)),{s:'ai'})}catch(e){gagal++;D.err=String(e&&e.message||e).slice(0,100)}}
+  setP('');return gagal
+}
+Object.assign(ACT,{
+  mdNew:()=>{mdEdit=blankMd();mdSrcList=[];go()},
+  mdOpen:d=>{mdEdit=Object.assign(blankMd(),structuredClone(db.modul.find(x=>x.id===d.id)));mdSrcList=[];go()},
+  mdDel:d=>{if(confirm('Hapus modul ini?')){db.modul=db.modul.filter(x=>x.id!==d.id);save();go()}},
+  mdBack:()=>{mdEdit=null;go()},
+  mdCam:()=>$('#mdc').click(),mdUp:()=>$('#mdf').click(),
+  mdSave:()=>{const d=mdEdit;if(!d||!d.data){toast('Susun isinya dulu');return}d.updated=today();if(!d.id){d.id=uid();db.modul.push(structuredClone(d))}else db.modul=db.modul.map(x=>x.id===d.id?structuredClone(d):x);save();toast('Tersimpan ✅')},
+  mdPrint:d=>{if(mdEdit&&mdEdit.data)printRaw(mdHtml(mdEdit,d.p||'semua'))},
+  mdDoc:()=>{const d=mdEdit;if(!d||!d.data)return;const h=mdHtml(d,'semua').replace(/<div class="pb"><\/div>/g,'<br clear="all" style="page-break-before:always">');
+    dl(new Blob(['﻿<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word"><head><meta charset="utf-8"><title>Modul Ajar</title>'+mdCss+'</head><body>'+h+'</body></html>'],{type:'application/msword'}),`modul-ajar-${String(d.mapel||'mapel').replace(/[^\w]+/g,'-')}-kelas${d.kelas}.doc`)},
+  mdReset:()=>{if(mdEdit&&confirm('Buang semua hasil edit dan kembali ke hasil asli?')){mdEdit.html=null;mdPage(view)}},
+  mdAI:(b0,b)=>busy(b,'⏳ AI menyusun… (beberapa menit)',async()=>{
+    const d=mdEdit;if(!cl(d.mapel)||(!cl(d.topik)&&!cl(d.bab))){toast('Isi mata pelajaran dan topik dulu');return}
+    if(d.data&&!confirm('Susun ulang dari awal? Hasil sebelumnya (termasuk edit Anda) akan diganti.'))return;
+    const g=await mdRun(d,false);mdPage(view);toast(g?`Selesai, ${mdLokalCount(d)} bagian memakai template — bisa dicoba lagi (${(d.data&&d.data.err)||''})`:'Modul ajar selesai ✨ — periksa lalu simpan')}),
+  mdLagi:(b0,b)=>busy(b,'⏳ Mencoba lagi…',async()=>{const d=mdEdit;if(d.html&&!confirm('Hasil edit Anda pada bagian yang diperbarui akan diganti. Lanjutkan?'))return;
+    const g=await mdRun(d,true);mdPage(view);toast(g?`Masih ${mdLokalCount(d)} bagian template (${(d.data&&d.data.err)||''})`:'Semua bagian sudah disusun AI ✨')})
+});
+view.addEventListener('input',e=>{const t=e.target;
+  if(t.dataset&&t.dataset.md&&mdEdit){mdEdit[t.dataset.md]=t.value;if(t.tagName==='TEXTAREA')grow(t)}
+  const s=t.closest&&t.closest('[data-sec]');if(s&&mdEdit&&mdEdit.data){clearTimeout(mdTmr);mdTmr=setTimeout(()=>{mdEdit.html=mdEdit.html||{};mdEdit.html[s.dataset.sec]=mdClean(s.innerHTML)},400)}});
+view.addEventListener('change',e=>{const t=e.target;
+  if(t.dataset&&t.dataset.md==='model'&&mdEdit)mdEdit.model=t.value;
+  if(t.id==='mrpp'&&mdEdit)mdPick(t.value);
+  if(t.id==='mdc'||t.id==='mdf'){const fs=[...t.files];t.value='';mdRead(fs)}});
+PAGES.modul=defs.modul;
+
+{const tmp={...PAGES};Object.keys(PAGES).forEach(k=>delete PAGES[k]);['dashboard','asisten','dini','guru','impor','siswa','mapel','kalender','rpp','modul','diff','perangkat','stem','soal','bahan','instrumen','asesmen','jadwal','absensi','absrekap','nilai','nilaicepat','koreksi','leger','tl','catcepat','karakter','rapor','kartu','jurnal','surat','kinerja','rekap','excel','wali','tahun','setting'].forEach(k=>{if(tmp[k])PAGES[k]=tmp[k]})}
 
 
 /* ===== navigasi ===== */
@@ -2198,7 +2405,7 @@ const nav=$('#drawer');
 nav.innerHTML=Object.entries(PAGES).map(([k,p])=>`<div class="ni" data-p="${k}" role="link" tabindex="0"><span class="ic">${p.icon}</span>${p.label}</div>`).join('');
 nav.insertAdjacentHTML('beforeend','<div class="ncr"><b>KelasKu</b><br>Design by Akhmad Fitra Harry, S.Pd</div>');
 const closeNav=()=>{nav.classList.remove('open');$('#ov').classList.remove('on')};
-nav.addEventListener('click',e=>{const n=e.target.closest('.ni');if(!n)return;const p=n.dataset.p;if(p==='rpp')rppEdit=null;if(p==='perangkat')perEdit=null;if(p==='soal')soalEdit=null;if(p==='instrumen')insEdit=null;if(p==='diff')dfEdit=null;if(p==='bahan')bhEdit=null;if(p==='stem')stEdit=null;if(p==='siswa')imp=null;if(location.hash==='#/'+p){go()}else location.hash='#/'+p;closeNav()});
+nav.addEventListener('click',e=>{const n=e.target.closest('.ni');if(!n)return;const p=n.dataset.p;if(p==='rpp')rppEdit=null;if(p==='perangkat')perEdit=null;if(p==='soal')soalEdit=null;if(p==='instrumen')insEdit=null;if(p==='diff')dfEdit=null;if(p==='bahan')bhEdit=null;if(p==='stem')stEdit=null;if(p==='modul')mdEdit=null;if(p==='siswa')imp=null;if(location.hash==='#/'+p){go()}else location.hash='#/'+p;closeNav()});
 $('#burger').onclick=()=>{nav.classList.toggle('open');$('#ov').classList.toggle('on')};
 $('#ov').onclick=closeNav;
 $('#mc').onclick=()=>$('#modal').classList.remove('on');

@@ -388,6 +388,81 @@ Keluarkan JSON: {"lkpd":{"petunjuk":"","langkah":["5 sampai 6 langkah kerja"],"p
 Aturan: rubrik tepat 5 kriteria: Sains, Teknologi, Teknik, Matematika, Kolaborasi dan komunikasi; deskriptor singkat, dapat diamati, bahasa sederhana; langkah LKPD dapat dikerjakan siswa SD secara mandiri.`,
     };
   },
+  // ---- Modul Ajar Mendalam, bagian 1: identitas, materi, TP, desain umum ----
+  modul1(b) {
+    const topik = clean(b.topik, 400) || clean(b.bab, 150);
+    if (!topik || !clean(b.mapel, 80)) throw new Error('Mapel dan topik wajib diisi');
+    const n = num(b.pertemuan, 4, 1, 12), jp = num(b.jpPer, 3, 1, 6);
+    const sumber = clean(b.sumber_teks, 3000);
+    const tpTeks = clean(b.tpTeks, 800);
+    return {
+      max: 2800,
+      user: `Susun bagian awal Modul Ajar format Pembelajaran Mendalam (Deep Learning) Kurikulum Merdeka untuk SD.
+- Mata pelajaran: ${clean(b.mapel, 80)}; kelas ${clean(b.kelas, 3)} (Fase ${clean(b.fase, 2)}); semester ${clean(b.semester, 14)}; tahun pelajaran ${clean(b.tahun, 14)}
+- Bab/judul: ${clean(b.bab, 150) || '-'}
+- Topik/materi pokok: ${topik}
+- Alokasi: ${n} pertemuan x ${jp} JP (${num(b.menit, 35, 20, 60)} menit per JP)
+- Model pembelajaran: ${clean(b.model, 60)}; sintaks: ${(Array.isArray(b.sintaks) ? b.sintaks : []).slice(0, 8).map((x) => clean(x, 60)).join(' > ')}
+- Kondisi kelas: ${clean(b.catatan, 200) || '-'}
+${tpTeks ? `- Tujuan pembelajaran dari guru (pertahankan maknanya, boleh dirapikan):\n${tpTeks}\n` : ''}${sumber ? `- SUMBER MATERI (acuan utama, jangan menambah fakta di luar sumber):\n"""\n${sumber}\n"""\n` : ''}- Dimensi profil lulusan yang boleh dipakai: ${(Array.isArray(b.dplT) ? b.dplT : []).slice(0, 8).map((x) => clean(x, 40)).join('; ')}
+
+Keluarkan JSON: {"pengetahuan_awal":"2 kalimat","minat":"2 kalimat","kebutuhan":"2 kalimat","materi":{"faktual":"","konseptual":"","prosedural":"","metakognitif":""},"dpl":[{"nama":"salah satu dimensi di atas","deskripsi":"kegiatan yang mengembangkannya"}],"tp":[{"pertemuan":"1-2","rumusan":"Peserta didik mampu ... (ada kriteria terukur, mis. minimal 80%)"}],"lintas":["Mapel A x Mapel B – penjelasan"],"judul_topik":"","metode":"","kemitraan":{"guru_siswa":"","siswa_siswa":""},"lingkungan":{"fisik":"","sosial":"","psikologis":""},"digital":[""]}.
+Aturan: dpl 3 sampai 5 dimensi; tp 3 sampai 5 butir dan rentang "pertemuan" harus berurutan menutupi pertemuan 1 sampai ${n} tanpa celah (mis. 1-2, 3-5, 6-7); tiap rumusan TP diawali "Peserta didik mampu" dan terukur; lintas 2 butir; metode berupa daftar dipisah koma; kegiatan sesuai usia SD dan bahan mudah didapat; jangan mengarang fakta ilmiah.`,
+    };
+  },
+
+  // ---- Modul Ajar Mendalam, bagian 2: satu pertemuan lengkap + LKM ----
+  modulp(b) {
+    const sint = (Array.isArray(b.sintaks) ? b.sintaks : []).slice(0, 8).map((x) => clean(x, 60));
+    if (!sint.length) throw new Error('Sintaks kosong');
+    const no = num(b.no, 1, 1, 12), total = num(b.total, 1, 1, 12);
+    const sumber = clean(b.sumber_teks, 2500);
+    return {
+      max: 2800,
+      user: `Susun langkah pembelajaran PERTEMUAN ${no} dari ${total} untuk Modul Ajar Pembelajaran Mendalam SD.
+- Mata pelajaran: ${clean(b.mapel, 80)}; kelas ${clean(b.kelas, 3)} (Fase ${clean(b.fase, 2)}); bab/topik: ${clean(b.bab, 150) || clean(b.topik, 150)}; materi pokok: ${clean(b.topik, 300)}
+- Tujuan pembelajaran pertemuan ini: ${clean(b.tpIni, 400)}
+- Seluruh TP modul: ${(Array.isArray(b.tpSemua) ? b.tpSemua : []).slice(0, 6).map((x) => clean(x, 220)).join(' | ')}
+- Model: ${clean(b.model, 60)}; sintaks berurutan: ${sint.map((x, i) => `${i + 1}. ${x}`).join('; ')}
+- Waktu: kegiatan awal ${num(b.menitAwal, 15, 5, 30)} menit, inti ${num(b.menitInti, 80, 20, 200)} menit, akhir ${num(b.menitAkhir, 10, 5, 30)} menit
+- Kondisi kelas: ${clean(b.catatan, 200) || '-'}
+${sumber ? `- SUMBER MATERI (acuan, jangan menambah fakta di luar sumber):\n"""\n${sumber}\n"""\n` : ''}
+Keluarkan JSON: {"tujuan_khusus":"Peserta didik mampu ... (khusus pertemuan ini)","awal":["5 langkah"],"inti":["tepat ${sint.length} butir, satu untuk setiap sintaks sesuai urutan"],"akhir":["4 sampai 5 langkah"],"asesmen":{"awal":"","proses":"","akhir":""},"lkm":{"judul":"LKM ${no} – judul menarik","instruksi":"petunjuk untuk siswa","isi":["3 sampai 6 butir tugas/soal yang benar-benar bisa dikerjakan siswa, tulis isi soalnya lengkap"],"refleksi":"kalimat refleksi dengan titik-titik isian"}}.
+Aturan: kegiatan awal memuat salam dan doa, apersepsi, motivasi, dan penyampaian tujuan; beri penanda prinsip pembelajaran mendalam di akhir langkah: (Berkesadaran), (Bermakna), atau (Menggembirakan); tiap butir inti ditutup penanda dimensi profil dalam kurung, mis. (Bernalar Kritis, Kolaborasi), dan menjelaskan kegiatan guru DAN peserta didik secara konkret (jumlah kelompok, bahan, contoh pertanyaan); akhir memuat simpulan, refleksi, umpan balik, informasi pertemuan berikutnya, doa; asesmen awal=diagnostik singkat, proses=observasi/hasil kerja, akhir=instrumen dan target ketercapaian; semua sesuai usia SD, bahan mudah didapat; pertemuan ini harus melanjutkan pertemuan sebelumnya dan tidak mengulang isi pertemuan lain.`,
+    };
+  },
+
+  // ---- Modul Ajar Mendalam, bagian 3: soal dan media ----
+  modul3(b) {
+    const tp = (Array.isArray(b.tpSemua) ? b.tpSemua : []).slice(0, 6).map((x, i) => `TP ${i + 1}: ${clean(x, 220)}`).join('\n');
+    if (!tp) throw new Error('TP kosong');
+    return {
+      max: 2400,
+      user: `Buat lampiran soal dan media untuk Modul Ajar SD.
+- Mata pelajaran: ${clean(b.mapel, 80)}; kelas ${clean(b.kelas, 3)}; topik: ${clean(b.topik, 300)}
+${tp}
+
+Keluarkan JSON: {"soal_awal":[{"q":"","a":"jawaban/kunci"}],"soal_formatif":[{"tp":"TP 1","q":""}],"media":[""]}.
+Aturan: soal_awal tepat 5 soal diagnostik ringan tentang pengetahuan awal topik ini, tiap soal punya jawaban/kunci (bila terbuka tulis contoh jawaban dan "kebijaksanaan guru"); soal_formatif tepat 1 soal per TP ditambah 1 soal integratif berlabel "Integratif", isinya lengkap dan bisa langsung dikerjakan (bila pilihan ganda tulis opsi a, b, c di dalam q); media 8 sampai 10 butir alat/bahan/media yang konkret dan mudah didapat; bahasa sesuai usia SD; jangan mengarang fakta ilmiah.`,
+    };
+  },
+
+  // ---- Modul Ajar Mendalam, bagian 4: ringkasan materi dan rubrik ----
+  modul4(b) {
+    const tp = (Array.isArray(b.tpSemua) ? b.tpSemua : []).slice(0, 6).map((x, i) => `TP ${i + 1}: ${clean(x, 220)}`).join('\n');
+    if (!tp) throw new Error('TP kosong');
+    const m = b.materi && typeof b.materi === 'object' ? b.materi : {};
+    return {
+      max: 2800,
+      user: `Buat ringkasan materi (bahan ajar) dan rubrik penilaian 4 skala untuk Modul Ajar SD.
+- Mata pelajaran: ${clean(b.mapel, 80)}; kelas ${clean(b.kelas, 3)}; topik: ${clean(b.topik, 300)}
+- Materi: faktual: ${clean(m.faktual, 200)}; konseptual: ${clean(m.konseptual, 300)}; prosedural: ${clean(m.prosedural, 200)}
+${tp}
+
+Keluarkan JSON: {"ringkasan":[{"judul":"sub materi","isi":"penjelasan singkat dengan contoh, boleh daftar bernomor dengan \\n"}],"rubrik_sikap":[{"aspek":"","l4":"Sangat Baik","l3":"Baik","l2":"Cukup","l1":"Perlu Bimbingan"}],"rubrik_pengetahuan":[{"aspek":"","l4":"","l3":"","l2":"","l1":""}],"rubrik_keterampilan":[{"aspek":"","l4":"","l3":"","l2":"","l1":""}]}.
+Aturan: ringkasan 4 sampai 6 sub materi sesuai TP, bahasa ramah anak SD dan ringkas, jangan mengarang fakta; rubrik_sikap 3 sampai 4 aspek dimensi profil lulusan (mis. Bernalar Kritis, Mandiri, Komunikasi, Kolaborasi); rubrik_pengetahuan 3 aspek yang mengacu TP, deskriptor memakai kriteria terukur (mis. 4 dari 5 benar); rubrik_keterampilan 3 sampai 4 aspek unjuk kerja; deskriptor tiap level singkat, dapat diamati, bukan angka nilai.`,
+    };
+  },
 };
 
 function parseJson(text) {
