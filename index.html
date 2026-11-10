@@ -193,7 +193,8 @@ function DS(){
 }
 const tableHtml=(head,rows)=>`<table><thead><tr>${head.map(h=>`<th>${esc(h)}</th>`).join('')}</tr></thead><tbody>${rows.map(r=>`<tr>${r.map(c=>`<td>${esc(c)}</td>`).join('')}</tr>`).join('')||`<tr><td colspan="${head.length}">Belum ada data</td></tr>`}</tbody></table>`;
 const kop=()=>{const g=db.guru;return `<div class="kop"><h2>${esc(g.sekolah||'NAMA SEKOLAH')}</h2><p>Guru: ${esc(g.nama||'-')} • Kelas ${esc(g.kelas||'-')} • TA ${esc(g.tahun)} (${esc(g.semester)})</p></div>`};
-const ttd=()=>{const g=db.guru;return `<div class="ttd"><div>Mengetahui,<br>Kepala Sekolah<br><br><br><br><b><u>${esc(g.kepsek||'..................')}</u></b><br>NIP. ${esc(g.nipKepsek||'-')}</div><div>${fmtD(today())}<br>Guru Kelas<br><br><br><br><b><u>${esc(g.nama||'..................')}</u></b><br>NIP. ${esc(g.nip||'-')}</div></div>`};
+const ttdTgl=()=>{const t=cl(db.setting.ttdTempat)||'.................',d=db.setting.ttdTgl||today();return `${esc(t)}, ${fmtD(d)}`};
+const ttd=()=>{const g=db.guru;return `<div class="ttd"><div>Mengetahui,<br>Kepala Sekolah<br><br><br><br><b><u>${esc(g.kepsek||'..................')}</u></b><br>NIP. ${esc(g.nipKepsek||'-')}</div><div>${ttdTgl()}<br>Guru Kelas ${esc(g.kelas||'')}<br><br><br><br><b><u>${esc(g.nama||'..................')}</u></b><br>NIP. ${esc(g.nip||'-')}</div></div>`};
 function doPrint(inner,nokop){$('#printArea').innerHTML=(nokop?'':kop())+inner+ttd();setTimeout(()=>window.print(),150)}
 function downloadXls(key){
   const d=DS()[key];const html=`<html xmlns:x="urn:schemas-microsoft-com:office:excel"><head><meta charset="utf-8"></head><body><h3>${esc(db.guru.sekolah||'Sekolah')} — ${esc(d.label)}</h3>${tableHtml(d.head,d.rows)}</body></html>`;
@@ -404,6 +405,7 @@ setting:{label:'Pengaturan',icon:'⚙️',render(v){
   <div class="row" style="margin-top:8px"><button class="btn s g" data-act="salinDana">Salin nomor DANA</button><button class="btn a s" data-act="mintaKode">💬 Kirim permintaan via WhatsApp</button></div>
 </div>
   <div class="card"><h3>💾 Cadangan Data</h3><p class="mut">Data tersimpan di perangkat ini. Unduh cadangan secara berkala.</p><div class="row" style="margin-top:12px"><button class="btn" data-act="backup">⬇ Unduh Cadangan</button><label class="btn a" style="margin:0;cursor:pointer">⬆ Pulihkan<input type="file" id="rf" accept=".json" hidden></label><button class="btn r" data-act="reset">Hapus Semua</button></div></div>
+  <div class="card"><h3>✍️ Tanda Tangan Dokumen</h3><p class="mut">Tempat dan tanggal di atas nama guru pada semua dokumen cetak (RPP, Modul Ajar, rapor, surat, dll.).</p><label>Tempat</label><input id="ttdT" value="${esc(db.setting.ttdTempat||'')}" placeholder="mis. Makassar"><label>Tanggal (kosongkan = otomatis tanggal hari ini)</label><input id="ttdD" type="date" value="${esc(db.setting.ttdTgl||'')}"><p class="mut" style="margin-top:8px">Tampil: <b>${ttdTgl()}</b></p><button class="btn t s" style="margin-top:8px" data-act="saveTtd">Simpan</button></div>
   <div class="card"><h3>🎯 Penilaian</h3><label>Batas ketuntasan (KKTP) untuk deskripsi rapor</label><input id="kktp" type="number" min="0" max="100" value="${kktp()}"><button class="btn t s" style="margin-top:12px" data-act="saveKktp">Simpan</button></div>
   <div class="card"><h3>☁️ Cadangan Cloud</h3><p class="mut">${bkText()}</p><div class="row" style="margin:12px 0"><button class="btn t" data-act="shareBackup">📤 Bagikan Cadangan</button></div><small class="mut">Pilih Google Drive, WhatsApp, atau email dari menu bagikan HP. Tanpa pengaturan tambahan.</small>
   <h4 style="margin:18px 0 6px">Google Drive otomatis (opsional)</h4><label>Google Client ID</label><input id="gid" value="${esc(db.setting.gClientId||'')}" placeholder="xxxx.apps.googleusercontent.com"><div class="row" style="margin-top:10px"><button class="btn g s" data-act="saveGid">Simpan ID</button><button class="btn s" data-act="driveUp">☁️ Cadangkan ke Drive</button><button class="btn a s" data-act="driveDown">☁️ Pulihkan dari Drive</button></div><label style="display:flex;gap:10px;align-items:center;margin-top:12px;font-weight:600"><input type="checkbox" data-autod style="width:auto;box-shadow:none" ${db.setting.autoDrive?'checked':''}>Cadangkan otomatis ke Drive setiap ada perubahan (selama aplikasi terbuka)</label>
@@ -724,6 +726,7 @@ lkpdAI:(d,b)=>busy(b,'⏳ AI menyusun LKPD…',async()=>{
   catch(e){toast('Gagal membuat LKPD: '+String(e.message||e).slice(0,80)+' (butuh AI online)')}
   soalPage(view)}),
 /* pengaturan & cadangan */
+saveTtd:()=>{db.setting.ttdTempat=$('#ttdT').value.trim();db.setting.ttdTgl=$('#ttdD').value||'';save();toast('Tanda tangan tersimpan ✅');go()},
 saveKktp:()=>{db.setting.kktp=Math.min(100,Math.max(0,+$('#kktp').value||70));save();toast('Batas ketuntasan tersimpan ✅')},
 shareBackup:()=>shareBackup(),
 saveGid:()=>{db.setting.gClientId=$('#gid').value.trim();gTok=null;save();toast('Client ID tersimpan ✅')},
@@ -2277,7 +2280,7 @@ function mdLocal(d){
   for(let i=1;i<=n;i++)D.pertemuan.push(mdLocalMeet(d,D,i));return D
 }
 /* ---- tampilan ---- */
-const br=x=>esc(x).replace(/\n/g,'<br>'),mdSig=()=>{const g=db.guru;return `<table style="border:0;margin-top:24px;width:100%"><tr><td style="border:0;width:50%;text-align:center">Mengetahui,<br>Kepala Sekolah<br><br><br><br><b><u>${esc(g.kepsek||'................................')}</u></b><br>NIP. ${esc(g.nipKepsek||'................................')}</td><td style="border:0;text-align:center">${'................., '+fmtD(today())}<br>Guru Kelas ${esc(g.kelas||'')}<br><br><br><br><b><u>${esc(g.nama||'................................')}</u></b><br>NIP. ${esc(g.nip||'................................')}</td></tr></table>`};
+const br=x=>esc(x).replace(/\n/g,'<br>'),mdSig=()=>{const g=db.guru;return `<table style="border:0;margin-top:24px;width:100%"><tr><td style="border:0;width:50%;text-align:center">Mengetahui,<br>Kepala Sekolah<br><br><br><br><b><u>${esc(g.kepsek||'................................')}</u></b><br>NIP. ${esc(g.nipKepsek||'................................')}</td><td style="border:0;text-align:center">${ttdTgl()}<br>Guru Kelas ${esc(g.kelas||'')}<br><br><br><br><b><u>${esc(g.nama||'................................')}</u></b><br>NIP. ${esc(g.nip||'................................')}</td></tr></table>`};
 function mdSecs(d){
   const D=d.data;if(!D)return{modul:'',lampiran:'',lkm:''};
   const n=mdN(d),jp=mdJp(d),mn=mdMenit(d),M=MDL[d.model]||MDL.pbl,g=db.guru,top=d.bab||d.topik;
