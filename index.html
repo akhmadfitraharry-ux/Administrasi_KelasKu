@@ -90,6 +90,7 @@ label{display:block;font-weight:650;font-size:14px;margin:12px 0 5px}
 @media print{#printArea .cmp td,#printArea .cmp th{text-align:center;padding:2px 3px;font-size:10px}#printArea .cmp td:nth-child(2){text-align:left}}
 #printArea{display:none}
 .pb{page-break-after:always;break-after:page}
+.fobar{padding:14px 16px}.fobar input{margin-bottom:8px}.fo{margin:10px 0}.foh{display:flex;align-items:center;gap:10px;width:100%;text-align:left;padding:13px 16px;border:0;border-radius:18px;background:#fff;color:var(--ink);font:inherit;font-weight:800;cursor:pointer;box-shadow:0 5px 0 #d9d3ff,0 10px 18px rgba(80,60,200,.12)}.foh .n{margin-left:auto;background:#ece9ff;color:var(--p2);border-radius:999px;padding:2px 11px;font-size:12px}.fob{margin:10px 0 0 10px;padding-left:10px;border-left:3px solid #d9d3ff}.fob[hidden],.foi[hidden],.fo[hidden],.foempty[hidden]{display:none}
 .mdprev table{width:100%;border-collapse:collapse;margin:4px 0}.mdprev td,.mdprev th{border:1px solid #cfc8f7;padding:6px 8px;font-size:13px;vertical-align:top;text-align:left}.mdprev h3{margin:10px 0 4px;font-size:15px}.mdprev .pb{border-top:2px dashed #c9c2ff;margin:10px 0}
 .brand small.cr{font-size:10.5px;line-height:1.2;margin-top:2px}#ptitle{max-width:1000px;margin:0 auto 14px;font-size:22px}.ncr{margin:18px 8px 8px;padding-top:12px;border-top:1px dashed #d8d3f7;font-size:12px;color:var(--mut);text-align:center;line-height:1.5}.ncr b{color:var(--p2);font-size:14px}
 @media print{body>*:not(#printArea){display:none!important}#printArea{display:block;color:#000;background:#fff;padding:8mm}
@@ -220,7 +221,7 @@ function newRpp(){srcList=[];srcPending=[];const g=db.guru;return{id:null,dplAut
 function rppPage(v){
   if(!rppEdit){
     v.innerHTML=`<div class="wrap"><div class="hero tilt"><div><h2>Rencana Pembelajaran</h2><p>Susun RPP Pembelajaran Mendalam (format DPL) dengan bantuan AI, lalu sunting dan cetak.</p><button class="btn a" data-act="rppNew">✨ Buat RPP Baru</button></div></div>
-    ${db.rpp.length?[...db.rpp].reverse().map(r=>`<div class="card tilt item"><div class="ib">🧩</div><div class="im"><b>${esc(r.topik)}</b><small>${esc(r.mapel)} • Kelas ${esc(r.kelas)} • ${fmtD(r.updated)}</small></div><div class="ia"><button class="btn s g" data-act="rppOpen" data-id="${r.id}">Buka</button><button class="btn s g" data-act="rppCopy" data-id="${r.id}" title="Salin" aria-label="Salin">📄</button><button class="btn s r" data-act="rppDel" data-id="${r.id}">🗑</button></div></div>`).join(''):`<div class="card empty"><b>🧩</b>Belum ada RPP.</div>`}</div>`;return;
+    ${folderView('rpp',db.rpp,r=>`<div class="card tilt item"><div class="ib">🧩</div><div class="im"><b>${esc(r.topik)}</b><small>${esc(r.mapel)} • Kelas ${esc(r.kelas)} • ${fmtD(r.updated)}</small></div><div class="ia"><button class="btn s g" data-act="rppOpen" data-id="${r.id}">Buka</button><button class="btn s g" data-act="rppCopy" data-id="${r.id}" title="Salin" aria-label="Salin">📄</button><button class="btn s r" data-act="rppDel" data-id="${r.id}">🗑</button></div></div>`,r=>r.topik,`<div class="card empty"><b>🧩</b>Belum ada RPP.</div>`)}</div>`;return;
   }
   const d=rppEdit;
   const ta=k=>`<div class="sec"><label>${LBL[k]}</label><textarea data-f="${k}">${esc(d[k])}</textarea></div>`;
@@ -512,7 +513,7 @@ const PERDOC={
 function perPage(v){
   if(!perEdit){
     v.innerHTML=`<div class="wrap"><div class="hero tilt"><div><h2>Perangkat Ajar</h2><p>Susun ATP, KKTP, Program Tahunan, dan Program Semester dari satu data, dibantu AI, siap cetak.</p><button class="btn a" data-act="perNew">✨ Buat Perangkat Ajar</button></div></div>
-    ${db.perangkat.length?[...db.perangkat].reverse().map(r=>`<div class="card tilt item"><div class="ib">🗂️</div><div class="im"><b>${esc(r.mapel)} • Kelas ${esc(r.kelas)}</b><small>Semester ${esc(r.semester)} • ${r.items.length} topik • ${fmtD(r.updated)}</small></div><div class="ia"><button class="btn s g" data-act="perOpen" data-id="${r.id}">Buka</button><button class="btn s g" data-act="perCopy" data-id="${r.id}" title="Salin" aria-label="Salin">📄</button><button class="btn s r" data-act="perDel" data-id="${r.id}">🗑</button></div></div>`).join(''):'<div class="card empty"><b>🗂️</b>Belum ada perangkat ajar.</div>'}</div>`;return}
+    ${folderView('perangkat',db.perangkat,r=>`<div class="card tilt item"><div class="ib">🗂️</div><div class="im"><b>${esc(r.mapel)} • Kelas ${esc(r.kelas)}</b><small>Semester ${esc(r.semester)} • ${r.items.length} topik • ${fmtD(r.updated)}</small></div><div class="ia"><button class="btn s g" data-act="perOpen" data-id="${r.id}">Buka</button><button class="btn s g" data-act="perCopy" data-id="${r.id}" title="Salin" aria-label="Salin">📄</button><button class="btn s r" data-act="perDel" data-id="${r.id}">🗑</button></div></div>`,r=>r.mapel+' kelas '+r.kelas,'<div class="card empty"><b>🗂️</b>Belum ada perangkat ajar.</div>')}</div>`;return}
   const p=perEdit,tot=p.items.reduce((a,i)=>a+(+i.jp||0),0),tgt=perTot(p);
   v.innerHTML=`<div class="wrap"><div class="card"><h3>1 · Data Semester</h3><div class="g2">
    <div><label>Mata Pelajaran</label><input data-pf="mapel" list="dlm2" value="${esc(p.mapel)}" placeholder="mis. Matematika"><datalist id="dlm2">${db.mapel.map(m=>`<option value="${esc(m.nama)}">`).join('')}</datalist></div>
@@ -566,7 +567,7 @@ const SOALDOC={
 function soalPage(v){
   if(!soalEdit){
     v.innerHTML=`<div class="wrap"><div class="hero tilt"><div><h2>Soal & LKPD</h2><p>Buat soal evaluasi, kunci jawaban, kisi-kisi, dan LKPD dari RPP atau materi buku Anda dengan bantuan AI.</p><button class="btn a" data-act="soalNew">✨ Buat Soal & LKPD</button></div></div>
-    ${db.soal.length?[...db.soal].reverse().map(r=>`<div class="card tilt item"><div class="ib">🧪</div><div class="im"><b>${esc(r.topik)}</b><small>${esc(r.mapel)} • Kelas ${esc(r.kelas)} • ${fmtD(r.updated)}</small></div><div class="ia"><button class="btn s g" data-act="soalOpen" data-id="${r.id}">Buka</button><button class="btn s g" data-act="soalCopy" data-id="${r.id}" title="Salin" aria-label="Salin">📄</button><button class="btn s r" data-act="soalDel" data-id="${r.id}">🗑</button></div></div>`).join(''):'<div class="card empty"><b>🧪</b>Belum ada soal.</div>'}</div>`;return}
+    ${folderView('soal',db.soal,r=>`<div class="card tilt item"><div class="ib">🧪</div><div class="im"><b>${esc(r.topik)}</b><small>${esc(r.mapel)} • Kelas ${esc(r.kelas)} • ${fmtD(r.updated)}</small></div><div class="ia"><button class="btn s g" data-act="soalOpen" data-id="${r.id}">Buka</button><button class="btn s g" data-act="soalCopy" data-id="${r.id}" title="Salin" aria-label="Salin">📄</button><button class="btn s r" data-act="soalDel" data-id="${r.id}">🗑</button></div></div>`,r=>r.topik,'<div class="card empty"><b>🧪</b>Belum ada soal.</div>')}</div>`;return}
   const d=soalEdit,lv=['Campuran C1-C4','Mudah (C1-C2)','Sedang (C2-C3)','Menantang (C3-C4)'];
   v.innerHTML=`<div class="wrap"><div class="card"><h3>1 · Bahan Soal</h3>
    <label>Ambil dari RPP (opsional)</label><select id="srpp"><option value="">— tanpa RPP —</option>${db.rpp.map(r=>`<option value="${r.id}" ${r.id===d.rppId?'selected':''}>${esc(r.topik)} — ${esc(r.mapel)}</option>`).join('')}</select>
@@ -1743,7 +1744,7 @@ function insHtml(d){
 function insPage(v){
   if(!insEdit){
     v.innerHTML=`<div class="wrap"><div class="hero tilt"><div><h2>Rubrik & Instrumen</h2><p>Rubrik penilaian, lembar observasi (daftar siswa terisi otomatis), angket diagnostik, dan daftar periksa projek, dibuat AI dari topik atau RPP Anda.</p><button class="btn a" data-act="insNew">✨ Buat Baru</button></div></div>
-    ${db.instrumen.length?[...db.instrumen].reverse().map(r=>`<div class="card tilt item"><div class="ib">🧾</div><div class="im"><b>${esc((r.data&&r.data.judul)||r.topik||INS[r.jenis])}</b><small>${INS[r.jenis]} • ${esc(r.mapel||'-')} • Kelas ${esc(r.kelas)} • ${fmtD(r.updated)}</small></div><div class="ia"><button class="btn s g" data-act="insOpen" data-id="${r.id}">Buka</button><button class="btn s r" data-act="insDel" data-id="${r.id}" aria-label="Hapus">🗑</button></div></div>`).join(''):'<div class="card empty"><b>🧾</b>Belum ada instrumen. Tekan “Buat Baru”.</div>'}</div>`;return}
+    ${folderView('instrumen',db.instrumen,r=>`<div class="card tilt item"><div class="ib">🧾</div><div class="im"><b>${esc((r.data&&r.data.judul)||r.topik||INS[r.jenis])}</b><small>${INS[r.jenis]} • ${esc(r.mapel||'-')} • Kelas ${esc(r.kelas)} • ${fmtD(r.updated)}</small></div><div class="ia"><button class="btn s g" data-act="insOpen" data-id="${r.id}">Buka</button><button class="btn s r" data-act="insDel" data-id="${r.id}" aria-label="Hapus">🗑</button></div></div>`,r=>(r.data&&r.data.judul)||r.topik||INS[r.jenis],'<div class="card empty"><b>🧾</b>Belum ada instrumen. Tekan “Buat Baru”.</div>')}</div>`;return}
   const d=insEdit;
   v.innerHTML=`<div class="wrap"><div class="card"><div class="row" style="justify-content:space-between"><h3>${d.id?'Ubah':'Buat'} Instrumen</h3><button class="btn s g" data-act="insBack">← Kembali</button></div>
   <label>Jenis</label><select data-if="jenis">${Object.entries(INS).map(([k,l])=>`<option value="${k}" ${k===d.jenis?'selected':''}>${l}</option>`).join('')}</select>
@@ -1857,7 +1858,7 @@ function dfHtml(d){
 function dfPage(v){
   if(!dfEdit){
     v.innerHTML=`<div class="wrap"><div class="hero tilt"><div><h2>RPP Diferensiasi</h2><p>Dari RPP Anda, AI menyusun kegiatan untuk siswa yang perlu pendampingan, yang cepat paham, dan untuk gaya belajar visual, auditori, atau kinestetik.</p><button class="btn a" data-act="dfNew">✨ Buat Baru</button></div></div>
-    ${db.diff.length?[...db.diff].reverse().map(r=>`<div class="card tilt item"><div class="ib">🌈</div><div class="im"><b>${esc(r.topik||'-')}</b><small>${esc(r.mapel)} • Kelas ${esc(r.kelas)} • ${r.data?r.data.length:0} varian • ${fmtD(r.updated)}</small></div><div class="ia"><button class="btn s g" data-act="dfOpen" data-id="${r.id}">Buka</button><button class="btn s r" data-act="dfDel" data-id="${r.id}" aria-label="Hapus">🗑</button></div></div>`).join(''):'<div class="card empty"><b>🌈</b>Belum ada. Tekan “Buat Baru”.</div>'}</div>`;return}
+    ${folderView('diff',db.diff,r=>`<div class="card tilt item"><div class="ib">🌈</div><div class="im"><b>${esc(r.topik||'-')}</b><small>${esc(r.mapel)} • Kelas ${esc(r.kelas)} • ${r.data?r.data.length:0} varian • ${fmtD(r.updated)}</small></div><div class="ia"><button class="btn s g" data-act="dfOpen" data-id="${r.id}">Buka</button><button class="btn s r" data-act="dfDel" data-id="${r.id}" aria-label="Hapus">🗑</button></div></div>`,r=>r.topik,'<div class="card empty"><b>🌈</b>Belum ada. Tekan “Buat Baru”.</div>')}</div>`;return}
   const d=dfEdit;
   v.innerHTML=`<div class="wrap"><div class="card"><div class="row" style="justify-content:space-between"><h3>Diferensiasi Pembelajaran</h3><button class="btn s g" data-act="dfBack">← Kembali</button></div>
   <label>Ambil dari RPP</label><select id="drpp"><option value="">— pilih RPP —</option>${db.rpp.map(r=>`<option value="${r.id}" ${r.id===d.rppId?'selected':''}>${esc(r.mapel)} — ${esc(r.topik)}</option>`).join('')}</select>
@@ -1893,7 +1894,7 @@ const bhLocal=d=>{const t=d.topik||'belajar hari ini';return{judul:'Ice Breaker 
 function bhPage(v){
   if(!bhEdit){
     v.innerHTML=`<div class="wrap"><div class="hero tilt"><div><h2>Bahan Ajar & Ice Breaker</h2><p>Ringkasan materi bahasa anak, cerita, ice breaker, permainan, dan pantun/lagu untuk topik Anda.</p><button class="btn a" data-act="bhNew">✨ Buat Baru</button></div></div>
-    ${db.bahan.length?[...db.bahan].reverse().map(r=>`<div class="card tilt item"><div class="ib">🎈</div><div class="im"><b>${esc(r.judul||r.topik||BHN[r.jenis])}</b><small>${BHN[r.jenis]} • ${esc(r.mapel||'-')} • Kelas ${esc(r.kelas)} • ${fmtD(r.updated)}</small></div><div class="ia"><button class="btn s g" data-act="bhOpen" data-id="${r.id}">Buka</button><button class="btn s r" data-act="bhDel" data-id="${r.id}" aria-label="Hapus">🗑</button></div></div>`).join(''):'<div class="card empty"><b>🎈</b>Belum ada. Tekan “Buat Baru”.</div>'}</div>`;return}
+    ${folderView('bahan',db.bahan,r=>`<div class="card tilt item"><div class="ib">🎈</div><div class="im"><b>${esc(r.judul||r.topik||BHN[r.jenis])}</b><small>${BHN[r.jenis]} • ${esc(r.mapel||'-')} • Kelas ${esc(r.kelas)} • ${fmtD(r.updated)}</small></div><div class="ia"><button class="btn s g" data-act="bhOpen" data-id="${r.id}">Buka</button><button class="btn s r" data-act="bhDel" data-id="${r.id}" aria-label="Hapus">🗑</button></div></div>`,r=>r.judul||r.topik||BHN[r.jenis],'<div class="card empty"><b>🎈</b>Belum ada. Tekan “Buat Baru”.</div>')}</div>`;return}
   const d=bhEdit;
   v.innerHTML=`<div class="wrap"><div class="card"><div class="row" style="justify-content:space-between"><h3>Buat Bahan</h3><button class="btn s g" data-act="bhBack">← Kembali</button></div>
   <label>Jenis</label><select data-bh="jenis">${Object.entries(BHN).map(([k,l])=>`<option value="${k}" ${k===d.jenis?'selected':''}>${l}</option>`).join('')}</select>
@@ -2135,7 +2136,7 @@ function stHtml(d,part){
 function stPage(v){
   if(!stEdit){
     v.innerHTML=`<div class="wrap"><div class="hero tilt"><div><h2>Perangkat STEM</h2><p>Integrasi Sains, Teknologi, Teknik, dan Matematika ke dalam projek P5/kokurikuler atau mata pelajaran: rancangan, LKPD, dan rubrik siap cetak.</p><button class="btn a" data-act="stNew">✨ Buat Baru</button></div></div>
-    ${db.stem.length?[...db.stem].reverse().map(r=>`<div class="card tilt item"><div class="ib">🔬</div><div class="im"><b>${esc((r.data&&r.data.judul)||r.topik||r.tema||'Perangkat STEM')}</b><small>${r.mode==='p5'?'Projek P5':esc(r.mapel||'Mapel')} • Kelas ${esc(r.kelas)} • ${esc(r.pertemuan)} pertemuan • ${fmtD(r.updated)}</small></div><div class="ia"><button class="btn s g" data-act="stOpen" data-id="${r.id}">Buka</button><button class="btn s r" data-act="stDel" data-id="${r.id}" aria-label="Hapus">🗑</button></div></div>`).join(''):'<div class="card empty"><b>🔬</b>Belum ada. Tekan “Buat Baru”.</div>'}</div>`;return}
+    ${folderView('stem',db.stem,r=>`<div class="card tilt item"><div class="ib">🔬</div><div class="im"><b>${esc((r.data&&r.data.judul)||r.topik||r.tema||'Perangkat STEM')}</b><small>${r.mode==='p5'?'Projek P5':esc(r.mapel||'Mapel')} • Kelas ${esc(r.kelas)} • ${esc(r.pertemuan)} pertemuan • ${fmtD(r.updated)}</small></div><div class="ia"><button class="btn s g" data-act="stOpen" data-id="${r.id}">Buka</button><button class="btn s r" data-act="stDel" data-id="${r.id}" aria-label="Hapus">🗑</button></div></div>`,r=>(r.data&&r.data.judul)||r.topik||r.tema||'Perangkat STEM','<div class="card empty"><b>🔬</b>Belum ada. Tekan “Buat Baru”.</div>')}</div>`;return}
   const d=stEdit;
   v.innerHTML=`<div class="wrap"><div class="card"><div class="row" style="justify-content:space-between"><h3>Rancang Pembelajaran STEM</h3><button class="btn s g" data-act="stBack">← Kembali</button></div>
   <label>Dipakai untuk</label><select data-st="mode"><option value="p5" ${d.mode==='p5'?'selected':''}>Projek P5 / Kokurikuler</option><option value="mapel" ${d.mode==='mapel'?'selected':''}>Mata pelajaran (IPAS, Matematika, dll.)</option></select>
@@ -2319,7 +2320,7 @@ function mdClean(h){const t=document.createElement('template');t.innerHTML=h;t.c
 function mdPage(v){
   if(!mdEdit){
     v.innerHTML=`<div class="wrap"><div class="hero tilt"><div><h2>Modul Ajar Mendalam</h2><p>RPP/Modul Ajar format Pembelajaran Mendalam lengkap: identifikasi, desain, langkah per pertemuan, asesmen, lampiran, rubrik, dan LKM. Bisa dari foto/berkas materi, disusun AI, lalu diunduh ke Word atau dicetak.</p><button class="btn a" data-act="mdNew">✨ Buat Baru</button></div></div>
-    ${db.modul.length?[...db.modul].reverse().map(r=>`<div class="card tilt item"><div class="ib">📘</div><div class="im"><b>${esc(r.mapel)} — ${esc(r.bab||r.topik)}</b><small>Kelas ${esc(r.kelas)} • ${esc(r.pertemuan)} pertemuan • ${fmtD(r.updated)}</small></div><div class="ia"><button class="btn s g" data-act="mdOpen" data-id="${r.id}">Buka</button><button class="btn s r" data-act="mdDel" data-id="${r.id}" aria-label="Hapus">🗑</button></div></div>`).join(''):'<div class="card empty"><b>📘</b>Belum ada. Tekan “Buat Baru”.</div>'}</div>`;return}
+    ${folderView('modul',db.modul,r=>`<div class="card tilt item"><div class="ib">📘</div><div class="im"><b>${esc(r.mapel)} — ${esc(r.bab||r.topik)}</b><small>Kelas ${esc(r.kelas)} • ${esc(r.pertemuan)} pertemuan • ${fmtD(r.updated)}</small></div><div class="ia"><button class="btn s g" data-act="mdOpen" data-id="${r.id}">Buka</button><button class="btn s r" data-act="mdDel" data-id="${r.id}" aria-label="Hapus">🗑</button></div></div>`,r=>(r.bab||r.topik),'<div class="card empty"><b>📘</b>Belum ada. Tekan “Buat Baru”.</div>')}</div>`;return}
   const d=mdEdit,lokal=d.data?mdLokalCount(d):0;
   v.innerHTML=`<div class="wrap"><div class="card"><div class="row" style="justify-content:space-between"><h3>Susun Modul Ajar</h3><button class="btn s g" data-act="mdBack">← Kembali</button></div>
   <label>Ambil dari RPP (opsional)</label><select id="mrpp"><option value="">— tanpa RPP —</option>${db.rpp.map(r=>`<option value="${r.id}" ${r.id===d.rppId?'selected':''}>${esc(r.mapel)} — ${esc(r.topik)}</option>`).join('')}</select>
@@ -2461,6 +2462,43 @@ Object.assign(ACT,{
 });
 document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible'){const s=syGet();if(s.auto&&s.key)syNow(false)}});
 setTimeout(()=>{const s=syGet();if(s.auto&&s.key)syNow(false)},2500);
+
+/* ================= FOLDER DAFTAR (RPP, Modul, Soal, dll.) ================= */
+const FO_LS='kelasku3d.fo';
+const foCfg=()=>{try{const c=JSON.parse(localStorage.getItem(FO_LS)||'{}')||{};return{by:c.by||'mapel',sort:c.sort||'baru',open:c.open||{}}}catch{return{by:'mapel',sort:'baru',open:{}}}};
+const foSave=c=>{try{localStorage.setItem(FO_LS,JSON.stringify(c))}catch{}};
+const foNat=(a,b)=>String(a).localeCompare(String(b),'id',{numeric:true,sensitivity:'base'});
+function foGroup(r,by,P5){
+  const m=(P5&&r.mode==='p5')?'Projek P5':(cl(r.mapel)&&cl(r.mapel)!=='-'?cl(r.mapel):'Tanpa mata pelajaran'),k=r.kelas?'Kelas '+r.kelas:'Tanpa kelas';
+  return by==='kelas'?k:by==='mapelkelas'?m+' • '+k:m
+}
+function folderView(page,items,rowFn,titleFn,empty){
+  if(!items.length)return empty;
+  const cfg=foCfg(),rows=[...items].reverse().map(r=>({r,t:cl(String(titleFn(r)||'')),txt:[titleFn(r),r.mapel,r.topik,r.bab,r.kelas,r.tema,r.judul].filter(Boolean).join(' ').toLowerCase()}));
+  const sortFn=cfg.sort==='nama'?(a,b)=>foNat(a.t,b.t):null,P5=page==='stem';
+  const item=x=>`<div class="foi" data-t="${esc(x.txt)}">${rowFn(x.r)}</div>`;
+  const bar=`<div class="card fobar"><input class="foq" data-fo="${page}" type="search" placeholder="🔍 Cari judul, mapel, atau bab…" aria-label="Cari"><div class="g2"><div><label>Kelompokkan</label><select class="fosel" data-fo-k="by"><option value="mapel" ${cfg.by==='mapel'?'selected':''}>Mata Pelajaran</option><option value="mapelkelas" ${cfg.by==='mapelkelas'?'selected':''}>Mapel + Kelas</option><option value="kelas" ${cfg.by==='kelas'?'selected':''}>Kelas</option><option value="none" ${cfg.by==='none'?'selected':''}>Tanpa folder</option></select></div><div><label>Urutan</label><select class="fosel" data-fo-k="sort"><option value="baru" ${cfg.sort==='baru'?'selected':''}>Terbaru dulu</option><option value="nama" ${cfg.sort==='nama'?'selected':''}>Nama (Bab 1, 2, 3…)</option></select></div></div>
+    ${cfg.by==='none'?'':`<div class="row" style="margin-top:8px"><button class="btn s g" data-act="foSemua" data-v="1">📂 Buka semua</button><button class="btn s g" data-act="foSemua" data-v="0">📁 Tutup semua</button></div>`}</div>`;
+  const body=cfg.by==='none'?`<div class="fob0">${(sortFn?[...rows].sort(sortFn):rows).map(item).join('')}</div>`:(()=>{
+    const gs=new Map();rows.forEach(x=>{const g=foGroup(x.r,cfg.by,P5),k=g.toLowerCase();if(!gs.has(k))gs.set(k,{g,list:[]});const e=gs.get(k);if(/^[A-Z]/.test(g)&&!/^[A-Z]/.test(e.g))e.g=g;e.list.push(x)});
+    const arr=[...gs.values()].sort((a,b)=>(/^tanpa/i.test(a.g)-/^tanpa/i.test(b.g))||foNat(a.g,b.g)),first=rows[0]?foGroup(rows[0].r,cfg.by,P5).toLowerCase():'';
+    const op=cfg.open[page]||{};
+    return arr.map(f=>{const key=f.g.toLowerCase(),isOpen=key in op?op[key]:(arr.length<=3||key===first);
+      return `<div class="fo" data-g="${esc(key)}"><button class="foh" data-act="foTog" data-p="${page}" data-g="${esc(key)}" aria-expanded="${isOpen}"><span class="fa">${isOpen?'📂':'📁'}</span><span>${esc(f.g)}</span><span class="n">${f.list.length}</span></button><div class="fob" ${isOpen?'':'hidden'}>${(sortFn?[...f.list].sort(sortFn):f.list).map(item).join('')}</div></div>`}).join('')})();
+  return (rows.length>=3?bar:'')+`<div class="fowrap" data-fopage="${page}">${body}</div><div class="card empty foempty" hidden><b>🔍</b>Tidak ada yang cocok.</div>`
+}
+Object.assign(ACT,{
+  foTog:(d,b)=>{const box=b.nextElementSibling,open=box.hidden;box.hidden=!open;b.setAttribute('aria-expanded',String(open));b.querySelector('.fa').textContent=open?'📂':'📁';
+    const c=foCfg();(c.open[d.p]=c.open[d.p]||{})[d.g]=open;foSave(c)},
+  foSemua:(d,b)=>{const w=b.closest('.card').parentElement.querySelector('.fowrap');if(!w)return;const v=d.v==='1',p=w.dataset.fopage,c=foCfg();c.open[p]={};
+    w.querySelectorAll('.fo').forEach(f=>{const h=f.querySelector('.foh');f.querySelector('.fob').hidden=!v;h.setAttribute('aria-expanded',String(v));h.querySelector('.fa').textContent=v?'📂':'📁';c.open[p][f.dataset.g]=v});foSave(c)}
+});
+view.addEventListener('input',e=>{const t=e.target;if(!(t.classList&&t.classList.contains('foq')))return;
+  const q=t.value.trim().toLowerCase(),w=view.querySelector('.fowrap');if(!w)return;let any=false;
+  w.querySelectorAll('.foi').forEach(i=>{const s=!q||i.dataset.t.includes(q);i.hidden=!s;if(s)any=true});
+  w.querySelectorAll('.fo').forEach(f=>{const n=[...f.querySelectorAll('.foi')].filter(i=>!i.hidden).length;f.hidden=!n;if(q&&n){f.querySelector('.fob').hidden=false;f.querySelector('.foh').setAttribute('aria-expanded','true');f.querySelector('.fa').textContent='📂'}});
+  const em=view.querySelector('.foempty');if(em)em.hidden=any});
+view.addEventListener('change',e=>{const t=e.target;if(t.classList&&t.classList.contains('fosel')){const c=foCfg();c[t.dataset.foK]=t.value;foSave(c);go()}});
 
 {const tmp={...PAGES};Object.keys(PAGES).forEach(k=>delete PAGES[k]);['dashboard','asisten','dini','guru','impor','siswa','mapel','kalender','rpp','modul','diff','perangkat','stem','soal','bahan','instrumen','asesmen','jadwal','absensi','absrekap','nilai','nilaicepat','koreksi','leger','tl','catcepat','karakter','rapor','kartu','jurnal','surat','kinerja','rekap','excel','wali','tahun','setting'].forEach(k=>{if(tmp[k])PAGES[k]=tmp[k]})}
 
