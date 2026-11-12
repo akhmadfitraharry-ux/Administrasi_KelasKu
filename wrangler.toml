@@ -4,3 +4,9 @@ compatibility_date = "2026-10-01"
 
 [ai]
 binding = "AI"
+
+# Sinkron data pribadi antar perangkat (opsional, khusus pemilik).
+# Cara mengaktifkan: buat KV namespace di Cloudflare, lalu hapus tanda # di tiga baris berikut dan isi ID-nya.
+# [[kv_namespaces]]
+# binding = "SYNC"
+# id = "ISI_ID_KV_ANDA"
