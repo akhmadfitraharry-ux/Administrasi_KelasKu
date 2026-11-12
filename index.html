@@ -129,7 +129,7 @@ const KEY='kelasku3d.v1';
 const DEF={guru:{nama:'',nip:'',sekolah:'',npsn:'',kelas:'',tahun:'2026/2027',semester:'Ganjil',kepsek:'',nipKepsek:''},siswa:[],mapel:[],rpp:[],asesmen:[],jadwal:[],absensi:{},nilai:[],jurnal:[],catatan:{},karakter:{},projek:[],kalender:[],tl:{},instrumen:[],dini:{},diff:[],bahan:[],stem:[],modul:[],arsip:[],rapor:{},perangkat:[],soal:[],setting:{api:'/api/generate',kktp:70}};
 let db=load();
 function load(){try{const s=JSON.parse(localStorage.getItem(KEY)||'{}');return Object.assign(structuredClone(DEF),s)}catch{return structuredClone(DEF)}}
-function save(){try{localStorage.setItem(KEY,JSON.stringify(db))}catch{toast('Penyimpanan penuh / diblokir browser')}schedAuto()}
+function save(){try{localStorage.setItem(KEY,JSON.stringify(db))}catch{toast('Penyimpanan penuh / diblokir browser')}schedAuto();schedSync()}
 function toast(m){const t=$('#toast');t.textContent=m;t.classList.add('on');clearTimeout(toast.t);toast.t=setTimeout(()=>t.classList.remove('on'),2800)}
 
 /* ===== modul CRUD generik ===== */
@@ -389,7 +389,7 @@ wali:{label:'Wali Kelas',icon:'🏫',render(v){
   <h3 style="margin-bottom:12px">Catatan Perkembangan Siswa</h3>${db.siswa.length?[...db.siswa].sort((a,b)=>a.nama.localeCompare(b.nama)).map(x=>`<div class="card"><b>${esc(x.nama)}</b><textarea data-cat="${x.id}" placeholder="Karakter, kemajuan belajar, catatan untuk orang tua…">${esc(db.catatan[x.id]||'')}</textarea></div>`).join(''):`<div class="card empty"><b>🧒</b>Belum ada data siswa.</div>`}</div>`}},
 setting:{label:'Pengaturan',icon:'⚙️',render(v){
   v.innerHTML=`<div class="wrap"><div class="card"><h3>🤖 Alamat AI</h3><p class="mut">Endpoint fungsi Cloudflare untuk pembuatan RPP. Biarkan <code>/api/generate</code> jika aplikasi dibuka dari alamat Cloudflare Anda (workers.dev). Jika file dibuka langsung dari HP, isi alamat lengkap, mis. <code>https://administrasi-kelasku.AKUN.workers.dev/api/generate</code>.</p><input id="api" value="${esc(db.setting.api)}"><button class="btn t s" style="margin-top:12px" data-act="saveApi">Simpan</button> <button class="btn g s" style="margin-top:12px" data-act="tesAI">🔍 Tes Koneksi AI</button><div id="tesAIout" class="mut" style="margin-top:10px;font-size:13px;white-space:pre-wrap"></div></div>
-<div class="card"><h3>🔑 Akses AI</h3><p class="mut">Pilih salah satu: <b>kode akses</b> dari pembuat aplikasi, atau <b>kunci Gemini pribadi</b> (gratis, kuotanya milik Anda sendiri). Tersimpan hanya di perangkat ini dan tidak ikut cadangan.</p>
+${syCard()}<div class="card"><h3>🔑 Akses AI</h3><p class="mut">Pilih salah satu: <b>kode akses</b> dari pembuat aplikasi, atau <b>kunci Gemini pribadi</b> (gratis, kuotanya milik Anda sendiri). Tersimpan hanya di perangkat ini dan tidak ikut cadangan.</p>
   <label>Kode akses</label><input id="akses" value="${esc(aiGet().akses||'')}" placeholder="KK-NAMA-20271231-ABCDE12345" autocomplete="off">
   <label>Kunci Gemini pribadi (opsional)</label><input id="gkey" type="password" value="${esc(aiGet().gkey||'')}" placeholder="AIza…" autocomplete="off">
   <div class="row" style="margin-top:12px"><button class="btn t s" data-act="saveAkses">Simpan</button><button class="btn a s" data-act="tutGem">📘 Cara dapat kunci gratis</button></div>
@@ -2399,6 +2399,68 @@ view.addEventListener('change',e=>{const t=e.target;
   if(t.id==='mrpp'&&mdEdit)mdPick(t.value);
   if(t.id==='mdc'||t.id==='mdf'){const fs=[...t.files];t.value='';mdRead(fs)}});
 PAGES.modul=defs.modul;
+
+/* ================= SINKRON ONLINE PRIBADI (Cloudflare KV, khusus pemilik) ================= */
+const SY_LS='kelasku3d.sync';
+const syGet=()=>{try{return JSON.parse(localStorage.getItem(SY_LS)||'{}')||{}}catch{return{}}};
+const sySet=o=>{try{localStorage.setItem(SY_LS,JSON.stringify(o))}catch{}};
+let syBusy=false,syT=null;
+function syJson(){return JSON.stringify(db,function(k,v){return this===db.setting&&k==='api'?undefined:v})}
+function syHashOf(s){let h=2166136261;for(let i=0;i<s.length;i++){h^=s.charCodeAt(i);h=Math.imul(h,16777619)}return(h>>>0).toString(16)+':'+s.length}
+const syHash=()=>syHashOf(syJson());
+const syWhen=t=>{try{return new Date(t).toLocaleString('id-ID',{day:'numeric',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'})}catch{return t||'-'}};
+function syStat(t){const e=$('#syStat');if(e)e.textContent=t}
+async function syPost(body){
+  const s=syGet();if(!s.key)throw new Error('Isi Kunci Sinkron dulu');
+  const r=await fetch(apiBase('sync'),{method:'POST',headers:{'content-type':'application/json','x-sync':s.key},body:typeof body==='string'?body:JSON.stringify(body)});
+  const j=await r.json().catch(()=>({ok:false,error:'Server tidak merespons (HTTP '+r.status+')'}));return j}
+function syApply(j){
+  const s=syGet(),keep=db.setting&&db.setting.api;
+  try{localStorage.setItem('kelasku3d.prepull',JSON.stringify(db))}catch{}
+  db=Object.assign(structuredClone(DEF),j.data);db.setting=Object.assign({},DEF.setting,db.setting);if(keep)db.setting.api=keep;
+  sySet({...s,rev:j.rev,hash:syHash(),t:j.t,last:new Date().toISOString()});save();ini();go()
+}
+async function syPush(force){
+  const s=syGet(),js=syJson();if(js.length>20e6)throw new Error('Data terlalu besar untuk disinkronkan (lebih dari 20 MB).');
+  const r=await syPost('{"action":"push","rev":'+(s.rev||0)+(force?',"force":true':'')+',"data":'+js+'}');
+  if(r.ok){sySet({...s,rev:r.rev,hash:syHashOf(js),t:r.t,last:new Date().toISOString()});return r}
+  if(r.conflict)throw Object.assign(new Error(r.error),{conflict:true});
+  throw new Error(r.error||'Gagal mengirim')
+}
+async function syNow(manual){
+  const s=syGet();if(!s.key||syBusy)return;syBusy=true;
+  try{
+    const m=await syPost({action:'meta'});if(!m.ok)throw new Error(m.error);
+    const changed=syHash()!==s.hash,newer=m.rev>(s.rev||0);
+    if(!newer&&!changed){syStat('Sudah sinkron ✅ (revisi '+m.rev+')');if(manual)toast('Sudah sinkron ✅');return}
+    if(newer&&!changed){const j=await syPost({action:'pull'});if(!j.ok)throw new Error(j.error);syApply(j);toast('Data terbaru dari Cloud diterapkan ✅');return}
+    if(!newer&&changed){await syPush(false);syStat('Terkirim ke Cloud ✅');if(manual)toast('Data terkirim ke Cloud ✅');return}
+    if(!manual){toast('Sinkron: data di Cloud dan di perangkat ini sama-sama berubah. Buka Pengaturan → Sinkron Online.');return}
+    if(!s.hash){if(confirm(`Cloud sudah berisi data (revisi ${m.rev}, ${syWhen(m.t)}).\nOK = ambil data Cloud ke perangkat ini (data lama di perangkat ini disimpan sebagai salinan).\nBatal = tidak melakukan apa-apa.`)){const j=await syPost({action:'pull'});if(!j.ok)throw new Error(j.error);syApply(j);toast('Data dari Cloud diterapkan ✅')}return}
+    toast('Konflik: data di Cloud dan di perangkat ini sama-sama berubah. Pilih “Kirim ke Cloud” atau “Ambil dari Cloud”.')
+  }catch(e){const t=String(e&&e.message||e).slice(0,120);syStat('⚠ '+t);if(manual)toast('Sinkron gagal: '+t)}
+  finally{syBusy=false}
+}
+function schedSync(){const s=syGet();if(!s.auto||!s.key)return;clearTimeout(syT);syT=setTimeout(()=>syNow(false),6000)}
+const syCard=()=>{const s=syGet();return `<details class="card" style="padding:14px 18px"><summary><b>☁️ Sinkron Online (khusus pemilik)</b></summary>
+  <p class="mut" style="font-size:13px">Menyamakan data di semua perangkat Anda lewat Cloudflare milik Anda sendiri. Perlu penyiapan sekali di server (lihat panduan). Pengguna lain tidak terpengaruh.</p>
+  <label>Kunci Sinkron</label><input id="syKey" type="password" value="${esc(s.key||'')}" placeholder="sama dengan SYNC_KEY di Cloudflare" autocomplete="off">
+  <label style="display:flex;gap:8px;align-items:center;margin-top:10px"><input id="syAuto" type="checkbox" ${s.auto?'checked':''} style="width:auto"> Sinkron otomatis (saat aplikasi dibuka dan setelah ada perubahan)</label>
+  <div class="row" style="margin-top:12px"><button class="btn t s" data-act="sySave">Simpan &amp; Tes</button><button class="btn a s" data-act="syNow">🔄 Sinkron Sekarang</button></div>
+  <div class="row" style="margin-top:8px"><button class="btn s g" data-act="syKirim">⬆ Kirim ke Cloud</button><button class="btn s g" data-act="syAmbil">⬇ Ambil dari Cloud</button></div>
+  <p id="syStat" class="mut" style="margin-top:8px;font-size:13px">${s.rev?`Revisi terakhir: ${s.rev} • ${esc(syWhen(s.last||s.t))}`:'Belum pernah sinkron.'}</p></details>
+  `};
+Object.assign(ACT,{
+  sySave:async()=>{const s=syGet();sySet({...s,key:$('#syKey').value.trim(),auto:$('#syAuto').checked});if(!$('#syKey').value.trim()){toast('Kunci dihapus');return}
+    try{const m=await syPost({action:'meta'});if(!m.ok)throw new Error(m.error);syStat(`Tersambung ✅ Cloud revisi ${m.rev}${m.t?' • '+syWhen(m.t):''}`);toast('Tersambung ✅')}catch(e){syStat('⚠ '+String(e.message||e).slice(0,120));toast('Gagal tersambung: '+String(e.message||e).slice(0,80))}},
+  syNow:()=>syNow(true),
+  syKirim:async()=>{if(!confirm('Kirim data perangkat ini ke Cloud? Data di Cloud akan DITIMPA.'))return;
+    try{const s=syGet();const m=await syPost({action:'meta'});if(!m.ok)throw new Error(m.error);sySet({...s,rev:m.rev});await syPush(true);syStat('Terkirim ke Cloud ✅');toast('Data terkirim ke Cloud ✅')}catch(e){toast('Gagal: '+String(e.message||e).slice(0,80))}},
+  syAmbil:async()=>{if(!confirm('Ambil data dari Cloud? Data di perangkat ini akan DIGANTI (salinan lama disimpan otomatis).'))return;
+    try{const j=await syPost({action:'pull'});if(!j.ok)throw new Error(j.error);syApply(j);toast('Data dari Cloud diterapkan ✅')}catch(e){toast('Gagal: '+String(e.message||e).slice(0,80))}}
+});
+document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible'){const s=syGet();if(s.auto&&s.key)syNow(false)}});
+setTimeout(()=>{const s=syGet();if(s.auto&&s.key)syNow(false)},2500);
 
 {const tmp={...PAGES};Object.keys(PAGES).forEach(k=>delete PAGES[k]);['dashboard','asisten','dini','guru','impor','siswa','mapel','kalender','rpp','modul','diff','perangkat','stem','soal','bahan','instrumen','asesmen','jadwal','absensi','absrekap','nilai','nilaicepat','koreksi','leger','tl','catcepat','karakter','rapor','kartu','jurnal','surat','kinerja','rekap','excel','wali','tahun','setting'].forEach(k=>{if(tmp[k])PAGES[k]=tmp[k]})}
 
