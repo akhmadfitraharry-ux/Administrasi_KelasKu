@@ -8,5 +8,5 @@ binding = "AI"
 # Sinkron data pribadi antar perangkat (opsional, khusus pemilik).
 # Cara mengaktifkan: buat KV namespace di Cloudflare, lalu hapus tanda # di tiga baris berikut dan isi ID-nya.
 [[kv_namespaces]]
-# binding = "SYNC"
+binding = "SYNC"
 id = "a200d5863a7e42eaa4a4987f3c237499"
