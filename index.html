@@ -387,7 +387,7 @@ excel:{label:'Download Excel',icon:'📥',render:v=>rekap(v,'xls')},
 wali:{label:'Wali Kelas',icon:'🏫',render(v){
   const g=db.guru,L=db.siswa.filter(x=>x.jk==='L').length,P=db.siswa.filter(x=>x.jk==='P').length;
   v.innerHTML=`<div class="wrap"><div class="grid"><div class="card tilt stat"><span>🏫</span><b>${esc(g.kelas||'-')}</b><small>Kelas</small></div><div class="card tilt stat"><span>👦</span><b>${L}</b><small>Laki-laki</small></div><div class="card tilt stat"><span>👧</span><b>${P}</b><small>Perempuan</small></div></div>
-  <h3 style="margin-bottom:12px">Catatan Perkembangan Siswa</h3>${db.siswa.length?[...db.siswa].sort((a,b)=>a.nama.localeCompare(b.nama)).map(x=>`<div class="card"><b>${esc(x.nama)}</b><textarea data-cat="${x.id}" placeholder="Karakter, kemajuan belajar, catatan untuk orang tua…">${esc(db.catatan[x.id]||'')}</textarea></div>`).join(''):`<div class="card empty"><b>🧒</b>Belum ada data siswa.</div>`}</div>`}},
+  <h3 style="margin-bottom:6px">Catatan Perkembangan Siswa</h3>${db.siswa.length?`<div class="card"><p class="mut" style="font-size:13px">AI menyusun catatan dari nilai, kehadiran, karakter, dan catatan Anda. Hasilnya bisa diedit.</p><button class="btn a s" style="margin-top:8px" data-act="catAll">✨ Buat untuk Semua Siswa (yang masih kosong)</button></div>`:''}${db.siswa.length?[...db.siswa].sort((a,b)=>a.nama.localeCompare(b.nama)).map(x=>`<div class="card"><b>${esc(x.nama)}</b><textarea data-cat="${x.id}" placeholder="Karakter, kemajuan belajar, catatan untuk orang tua…">${esc(db.catatan[x.id]||'')}</textarea><button class="btn g s" style="margin-top:8px" data-act="catAI" data-id="${x.id}">✨ Buat dengan AI</button></div>`).join(''):`<div class="card empty"><b>🧒</b>Belum ada data siswa.</div>`}</div>`}},
 setting:{label:'Pengaturan',icon:'⚙️',render(v){
   v.innerHTML=`<div class="wrap"><div class="card"><h3>🤖 Alamat AI</h3><p class="mut">Endpoint fungsi Cloudflare untuk pembuatan RPP. Biarkan <code>/api/generate</code> jika aplikasi dibuka dari alamat Cloudflare Anda (workers.dev). Jika file dibuka langsung dari HP, isi alamat lengkap, mis. <code>https://administrasi-kelasku.AKUN.workers.dev/api/generate</code>.</p><input id="api" value="${esc(db.setting.api)}"><button class="btn t s" style="margin-top:12px" data-act="saveApi">Simpan</button> <button class="btn g s" style="margin-top:12px" data-act="tesAI">🔍 Tes Koneksi AI</button><div id="tesAIout" class="mut" style="margin-top:10px;font-size:13px;white-space:pre-wrap"></div></div>
 ${syCard()}<div class="card"><h3>🔑 Akses AI</h3><p class="mut">Pilih salah satu: <b>kode akses</b> dari pembuat aplikasi, atau <b>kunci Gemini pribadi</b> (gratis, kuotanya milik Anda sendiri). Tersimpan hanya di perangkat ini dan tidak ikut cadangan.</p>
@@ -2495,6 +2495,33 @@ view.addEventListener('input',e=>{const t=e.target;if(!(t.classList&&t.classList
   w.querySelectorAll('.fo').forEach(f=>{const n=[...f.querySelectorAll('.foi')].filter(i=>!i.hidden).length;f.hidden=!n;if(q&&n){f.querySelector('.fob').hidden=false;f.querySelector('.foh').setAttribute('aria-expanded','true');f.querySelector('.fa').textContent='📂'}});
   const em=view.querySelector('.foempty');if(em)em.hidden=any});
 view.addEventListener('change',e=>{const t=e.target;if(t.classList&&t.classList.contains('fosel')){const c=foCfg();c[t.dataset.foK]=t.value;foSave(c);go()}});
+
+/* ===== catatan perkembangan AI ===== */
+function catAbs(id){const c={H:0,S:0,I:0,A:0};Object.values(db.absensi||{}).forEach(d=>{if(d&&d[id]&&c[d[id]]!=null)c[d[id]]++});return c}
+function localCatat(s,data,ab){
+  const n=(s.nama||'').split(' ')[0],k=kktp(),all=data.length?data.reduce((a,d)=>a+d.rata,0)/data.length:0;
+  const ok=data.filter(d=>d.rata>=k).sort((a,b)=>b.rata-a.rata).slice(0,2).map(d=>d.nama),low=data.filter(d=>d.rata<k).map(d=>d.nama).slice(0,2);
+  let t=data.length?`Ananda ${n} menunjukkan perkembangan belajar yang ${all>=80?'sangat baik':all>=k?'baik':'perlu terus didampingi'}${ok.length?`, terutama pada ${ok.join(' dan ')}`:''}.`:`Ananda ${n} terus berproses dalam kegiatan belajar di kelas.`;
+  if(low.length)t+=` Ananda masih perlu bimbingan dan latihan pada ${low.join(' dan ')}.`;
+  const tot=ab.H+ab.S+ab.I+ab.A;if(tot&&ab.A>2)t+=' Mohon perhatian orang tua agar ananda hadir lebih rutin.';
+  return t+' Dukungan dan pendampingan belajar di rumah akan membantu ananda semakin percaya diri.'
+}
+async function catatGen(id){
+  const s=db.siswa.find(x=>x.id===id);if(!s)return null;
+  const data=raporData(id),ab=catAbs(id),k=KG(id),dimensi=DPL.map((n,i)=>k.dim[i+1]?{nama:n,level:LVN[k.dim[i+1]]}:null).filter(Boolean);
+  const guru=[db.catatan[id]||'',...k.cat.slice(-4).map(c=>c.teks)].filter(Boolean).join(' | ');
+  let t='',ai=false;
+  try{const r=await tugas('catwali',{nama:s.nama,jk:s.jk,kelas:db.guru.kelas,kktp:kktp(),mapel:data.map(d=>({nama:d.nama,rata:d.rata})),absensi:ab,dimensi,ringkasanKarakter:k.ringkasan,catatanGuru:guru},60000);t=norm(r&&r.catatan).trim();ai=!!t}catch(e){}
+  db.catatan[id]=t||localCatat(s,data,ab);save();return ai?'ai':'local'
+}
+Object.assign(ACT,{
+  catAI:(d,b)=>{const had=(db.catatan[d.id]||'').trim();if(had&&!confirm('Catatan siswa ini sudah terisi. AI akan memakainya sebagai bahan dan menggantinya dengan versi baru. Lanjutkan?'))return;
+    return busy(b,'⏳ AI menyusun…',async()=>{const r=await catatGen(d.id);toast(r==='ai'?'Catatan selesai ✨':'AI belum tersambung — memakai template offline');go()})},
+  catAll:(d,b)=>busy(b,'⏳ AI menyusun…',async()=>{
+    const todo=db.siswa.filter(x=>!(db.catatan[x.id]||'').trim());if(!todo.length){toast('Semua siswa sudah punya catatan');return}
+    let ai=0,loc=0;for(let i=0;i<todo.length;i++){b.textContent=`⏳ ${i+1}/${todo.length}…`;const r=await catatGen(todo[i].id);r==='ai'?ai++:loc++}
+    toast(`${ai+loc} catatan dibuat${loc?` (${loc} memakai template offline)`:' ✨'}`);go()})
+});
 
 {const tmp={...PAGES};Object.keys(PAGES).forEach(k=>delete PAGES[k]);['dashboard','asisten','dini','guru','impor','siswa','mapel','kalender','rpp','modul','diff','perangkat','stem','soal','bahan','instrumen','asesmen','jadwal','absensi','absrekap','nilai','nilaicepat','koreksi','leger','tl','catcepat','karakter','rapor','kartu','jurnal','surat','kinerja','rekap','excel','wali','tahun','setting'].forEach(k=>{if(tmp[k])PAGES[k]=tmp[k]})}
 

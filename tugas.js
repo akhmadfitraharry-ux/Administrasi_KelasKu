@@ -100,6 +100,30 @@ Keluarkan JSON: {"judul":"","tujuan":"","petunjuk":"","alat_bahan":"","kegiatan"
 Aturan: kegiatan berupa 3 sampai 5 langkah praktis berkelompok yang bisa dikerjakan tanpa proyektor; 4 sampai 6 pertanyaan bertingkat dari mudah ke sulit; bahasa ramah anak.`,
     };
   },
+  // ---- catatan perkembangan siswa (wali kelas) ----
+  catwali(b) {
+    const mp = (Array.isArray(b.mapel) ? b.mapel : []).slice(0, 14).map((m) => `- ${clean(m.nama, 60)}: ${num(m.rata, 0, 0, 100)}`).join('\n');
+    const ab = b.absensi && typeof b.absensi === 'object' ? b.absensi : {};
+    const dim = (Array.isArray(b.dimensi) ? b.dimensi : []).slice(0, 8).map((d) => `- ${clean(d.nama, 80)}: ${clean(d.level, 20)}`).join('\n');
+    const cat = clean(b.catatanGuru, 600);
+    if (!mp && !dim && !cat) throw new Error('Data siswa belum ada (nilai, karakter, atau catatan)');
+    return {
+      max: 600,
+      user: `Susun catatan perkembangan peserta didik untuk wali kelas (dibaca orang tua).
+Peserta didik: ${clean(b.nama, 60)} (${b.jk === 'P' ? 'perempuan' : 'laki-laki'}), kelas ${clean(b.kelas, 3) || '-'}. Batas ketuntasan: ${num(b.kktp, 75, 0, 100)}.
+Nilai rata-rata per mata pelajaran:
+${mp || '-'}
+Kehadiran: hadir ${num(ab.H, 0, 0, 999)}, sakit ${num(ab.S, 0, 0, 999)}, izin ${num(ab.I, 0, 0, 999)}, alpa ${num(ab.A, 0, 0, 999)}.
+Capaian karakter (Baru Memulai < Berkembang < Cakap < Mahir):
+${dim || '-'}
+Ringkasan karakter: ${clean(b.ringkasanKarakter, 500) || '-'}
+Catatan pengamatan guru: ${cat || '-'}
+
+Keluarkan JSON: {"catatan":"3 sampai 4 kalimat"}.
+Aturan: sebut siswa dengan "Ananda ${clean(b.nama, 60).split(' ')[0]}"; mulai dari kekuatan/kemajuan, lalu hal yang perlu ditingkatkan dengan halus, akhiri saran singkat untuk dukungan orang tua di rumah; JANGAN mengarang kejadian atau angka di luar data; kalau alpa banyak, sebut kehadiran dengan sopan; tanpa daftar, satu paragraf.`,
+    };
+  },
+
   // ---- ringkasan karakter siswa ----
   karakter(b) {
     const dim = (Array.isArray(b.dimensi) ? b.dimensi : []).slice(0, 8).map((d) => `- ${clean(d.nama, 80)}: ${clean(d.level, 20)}`).join('\n');
